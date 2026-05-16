@@ -32,9 +32,16 @@ export class MediaGateway {
     this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_READY, payload);
   }
 
-  emitMediaProcessing(postId: string, progress: number) {
+  emitMediaProcessing(postId: string, status: string) {
     this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_PROCESSING, {
-      progress,
+      status,
     });
+  }
+
+  emitMediaError(
+    postId: string,
+    payload: { mediaId: string; status: string; error: string },
+  ) {
+    this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_ERROR, payload);
   }
 }

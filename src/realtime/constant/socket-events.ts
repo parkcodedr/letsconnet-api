@@ -1,5 +1,3 @@
-
-
 export const SocketEvents = {
   CONNECT: 'connect',
 
@@ -15,4 +13,5 @@ export const SocketEvents = {
   READ: 'read',
 
   PRESENCE: 'presence',
+  MEDIA_ERROR: 'media-error',
 } as const;
