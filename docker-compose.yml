@@ -13,13 +13,27 @@ services:
       - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
-  
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: social_redis
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --save 900 1 --save 300 10
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
+  redis_data:

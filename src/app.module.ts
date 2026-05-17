@@ -9,6 +9,11 @@ import { DatabaseModule } from './database/database.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PostsModule } from './posts/posts.module';
 import { QueueModule } from './queue/queue.module';
+import { PostReactionsService } from './post-reactions/post-reactions.service';
+import { PostReactionsController } from './post-reactions/post-reactions.controller';
+import { RedisCacheModule } from './cache/redis-cache.module';
+import { CommentsService } from './comments/comments.service';
+import { CommentsController } from './comments/comments.controller';
 
 @Module({
   imports: [
@@ -26,8 +31,15 @@ import { QueueModule } from './queue/queue.module';
     DatabaseModule,
     PostsModule,
     QueueModule,
+    RedisCacheModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, CustomLoggerService, DatabaseService],
+  controllers: [AppController, PostReactionsController, CommentsController],
+  providers: [
+    AppService,
+    CustomLoggerService,
+    DatabaseService,
+    PostReactionsService,
+    CommentsService,
+  ],
 })
 export class AppModule {}

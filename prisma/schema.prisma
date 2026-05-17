@@ -102,31 +102,20 @@ model User {
   passwordHash      String?
 
   role              UserRole @default(USER)
-
   authProvider      AuthProvider @default(EMAIL)
-
   refreshTokenHash  String?
-
   tokenVersion      Int @default(0)
-
   isVerified        Boolean  @default(false)
   isDisabled        Boolean  @default(false)
-
   emailVerifyToken      String?
   emailVerifyExpiresAt  DateTime?
-
   passwordResetToken     String?
   passwordResetExpiresAt DateTime?
-
   lastLoginAt       DateTime?
-
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-
   profile           Profile?
-
   sessions          UserSession[]
-
   posts             Post[]
   postReactions     PostReaction[]
   postComments      Comment[]
@@ -274,14 +263,10 @@ model Media {
 
 model PostReaction {
   id          String @id @default(uuid())
-
   userId      String
   postId      String
-
   type        ReactionType
-
   createdAt   DateTime @default(now())
-
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
