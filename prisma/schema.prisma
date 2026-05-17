@@ -229,7 +229,7 @@ model Post {
 
   tags            PostTag[]
   mentions        PostMention[]
-
+  notifications Notification[]
   savedBy         SavedPost[]
 
   @@index([authorId, createdAt])
@@ -299,7 +299,7 @@ model Comment {
   replies         Comment[] @relation("CommentReplies")
 
   reactions       CommentReaction[]
-
+  notifications Notification[]
   mentions        CommentMention[]
 
   @@index([postId, createdAt])
@@ -493,12 +493,20 @@ model Notification {
   senderId      String?
   type          NotificationType
   entityId      String?
+  postId        String?  
+  commentId     String?  
+  metadata      Json?    
   isRead        Boolean @default(false)
   createdAt     DateTime @default(now())
+  
   receiver      User @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   sender        User? @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  post          Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment       Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([receiverId, isRead, createdAt])
+  @@index([postId])
+  @@index([commentId])
 }
 
 
