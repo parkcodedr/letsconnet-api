@@ -6,8 +6,10 @@ import { STORAGE_PROVIDER } from 'src/common/storage/storage.token';
 import { StorageProvider } from 'src/common/storage/storage.interface';
 import Redis from 'ioredis';
 import * as fs from 'fs/promises';
-import { PostWithRelations } from './types';
+import { OriginalPostWithRelations, PostWithRelations } from './types';
 import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { PostResourceMapper } from './resources/post.resource';
+import { ShareResourceMapper } from './resources/share.resource';
 
 @Injectable()
 export class PostsService {
@@ -37,59 +39,84 @@ export class PostsService {
       this.db.post.findMany({
         where: {
           authorId: userId,
-          status: { not: 'FAILED' },
+          status: 'READY',
+         
         },
         include: {
           media: {
-            where: {
-              status: 'READY',
-              url: { not: null },
-            },
-            orderBy: {
-              order: 'asc',
-            },
+            where: { status: 'READY', url: { not: null } },
+            orderBy: { order: 'asc' },
+            
+          },
+          reactions: {
+            where: { userId },
             take: 1,
           },
           _count: {
             select: {
-              media: {
-                where: {
-                  status: 'READY',
-                },
-              },
+              media: { where: { status: 'READY' } },
               reactions: true,
               comments: true,
             },
           },
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
       this.db.post.count({
-        where: {
-          authorId: userId,
-          status: { not: 'FAILED' },
-        },
+        where: { authorId: userId, status: 'READY' },
       }),
     ]);
 
+    const sharedPostIds = posts
+      .map((p) => p.sharedPostId)
+      .filter((id): id is string => id !== null);
+
+    const uniqueSharedPostIds = [...new Set(sharedPostIds)];
+
+    let originalPostsMap = new Map();
+
+    if (uniqueSharedPostIds.length > 0) {
+      const originalPosts = await this.db.post.findMany({
+        where: { id: { in: uniqueSharedPostIds } },
+        include: {
+          author: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  username: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+          media: {
+            where: { status: 'READY' },
+            orderBy: { order: 'asc' },
+            
+          },
+          _count: {
+            select: { reactions: true, comments: true },
+          },
+        },
+      });
+
+      originalPosts.forEach((op) => originalPostsMap.set(op.id, op));
+    }
+
+    const mappedPosts = posts.map((post) => {
+      const originalPost = post.sharedPostId
+        ? originalPostsMap.get(post.sharedPostId)
+        : null;
+      return PostResourceMapper.toPostResource(post, userId, originalPost);
+    });
+
     const result = {
-      data: posts.map((post) => ({
-        id: post.id,
-        content: post.content,
-        status: post.status,
-        visibility: post.visibility,
-        thumbnailUrl: post.media[0]?.url || null,
-        mediaCount: post._count.media,
-        reactionsCount: post._count.reactions,
-        commentsCount: post._count.comments,
-        sharesCount: post.sharesCount,
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-      })),
+      data: mappedPosts,
       meta: {
         total,
         page,
@@ -99,7 +126,6 @@ export class PostsService {
     };
 
     await this.redis.setex(cacheKey, this.CACHE_TTL, JSON.stringify(result));
-
     return result;
   }
 
@@ -113,20 +139,12 @@ export class PostsService {
       return parsed;
     }
 
-    const post: PostWithRelations | null = await this.db.post.findFirst({
-      where: {
-        id: postId,
-        status: { not: 'FAILED' },
-      },
+    const post = await this.db.post.findFirst({
+      where: { id: postId, status: { not: 'FAILED' } },
       include: {
         media: {
-          where: {
-            status: 'READY',
-            url: { not: null },
-          },
-          orderBy: {
-            order: 'asc',
-          },
+          where: { status: 'READY', url: { not: null } },
+          orderBy: { order: 'asc' },
         },
         author: {
           select: {
@@ -143,18 +161,11 @@ export class PostsService {
           },
         },
         reactions: {
-          where: {
-            userId: userId,
-          },
-          select: {
-            type: true,
-          },
+          where: { userId },
+          select: { type: true },
         },
         _count: {
-          select: {
-            comments: true,
-            reactions: true,
-          },
+          select: { comments: true, reactions: true },
         },
       },
     });
@@ -164,14 +175,45 @@ export class PostsService {
       return null;
     }
 
+    let originalPost: OriginalPostWithRelations | null = null;
+
+    if (post.sharedPostId) {
+      const fetchedOriginal = await this.db.post.findUnique({
+        where: { id: post.sharedPostId },
+        include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              profile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true,
+                  username: true,
+                },
+              },
+            },
+          },
+          media: {
+            where: { status: 'READY', url: { not: null } },
+            orderBy: { order: 'asc' },
+          },
+          _count: {
+            select: { comments: true, reactions: true },
+          },
+        },
+      });
+
+      if (fetchedOriginal) {
+        originalPost = fetchedOriginal as OriginalPostWithRelations;
+      }
+    }
+
     const allReactions = await this.db.postReaction.groupBy({
       by: ['type'],
-      where: {
-        postId: postId,
-      },
-      _count: {
-        type: true,
-      },
+      where: { postId },
+      _count: { type: true },
     });
 
     const reactionCounts = allReactions.reduce(
@@ -182,23 +224,14 @@ export class PostsService {
       {} as Record<string, number>,
     );
 
-    const result = {
-      id: post.id,
-      content: post.content,
-      status: post.status,
-      visibility: post.visibility,
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
-      author: post.author,
-      media: post.media,
+    const result = PostResourceMapper.toPostDetailResource(
+      post as PostWithRelations,
       reactionCounts,
-      currentUserReaction: post.reactions[0]?.type || null,
-      commentsCount: post._count.comments,
-      sharesCount: post.sharesCount,
-    };
+      userId,
+      originalPost,
+    );
 
     await this.redis.setex(cacheKey, this.CACHE_TTL, JSON.stringify(result));
-
     return result;
   }
 
@@ -347,6 +380,88 @@ export class PostsService {
     };
   }
 
+  async sharePost(userId: string, postId: string, caption?: string) {
+    const originalPost = await this.db.post.findFirst({
+      where: { id: postId, status: { not: 'FAILED' } },
+      include: {
+        author: {
+          select: {
+            id: true,
+            profile: {
+              select: {
+                firstName: true,
+                lastName: true,
+                username: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+        media: {
+          where: { status: 'READY' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!originalPost) {
+      throw new NotFoundException('Post not found');
+    }
+
+    const sharedPost = await this.db.$transaction(async (tx) => {
+      const newPost = await tx.post.create({
+        data: {
+          authorId: userId,
+          sharedPostId: postId,
+          sharedCaption: caption || null,
+          status: 'READY',
+          visibility: 'PUBLIC',
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  username: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      await tx.post.update({
+        where: { id: postId },
+        data: { sharesCount: { increment: 1 } },
+      });
+
+      if (originalPost.authorId !== userId) {
+        await tx.notification.create({
+          data: {
+            receiverId: originalPost.authorId,
+            type: 'POST_SHARE',
+            senderId: userId,
+            postId: postId,
+            metadata: {
+              caption: caption?.substring(0, 100),
+              sharedPostId: newPost.id,
+            },
+          },
+        });
+      }
+
+      return newPost;
+    });
+
+    await this.invalidateUserPostsCache(userId);
+    await this.invalidatePostCache(postId);
+
+    return ShareResourceMapper.toShareResponse(sharedPost, originalPost);
+  }
   private getMediaType(file: Express.Multer.File): 'IMAGE' | 'VIDEO' | 'AUDIO' {
     if (file.mimetype.startsWith('image')) return 'IMAGE';
     if (file.mimetype.startsWith('video')) return 'VIDEO';

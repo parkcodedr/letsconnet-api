@@ -15,6 +15,7 @@ import { RedisCacheModule } from './cache/redis-cache.module';
 import { CommentsService } from './comments/comments.service';
 import { CommentsController } from './comments/comments.controller';
 import { CommentsModule } from './comments/comments.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CommentsModule } from './comments/comments.module';
     QueueModule,
     RedisCacheModule,
     CommentsModule,
+    MediaModule,
   ],
   controllers: [AppController, PostReactionsController, CommentsController],
   providers: [

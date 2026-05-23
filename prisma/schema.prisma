@@ -124,6 +124,7 @@ model User {
   mediaReactions    MediaReaction[]
   mediaComments     MediaComment[]
   taggedPosts       PostTag[]
+  mediaCommentReactions MediaCommentReaction[] 
   mentionedPosts    PostMention[]
   mentionedComments CommentMention[]
 
@@ -211,7 +212,8 @@ model Post {
 
   status          PostStatus @default(PROCESSING)
   visibility      Visibility @default(PUBLIC)
-
+  sharedPostId    String?  
+  sharedCaption   String?  @db.Text  
   commentsCount   Int @default(0)
   reactionsCount  Int @default(0)
   sharesCount     Int @default(0)
@@ -234,6 +236,7 @@ model Post {
 
   @@index([authorId, createdAt])
   @@index([createdAt])
+  @@index([sharedPostId])
 }
 
 
@@ -253,7 +256,6 @@ model Media {
   order         Int @default(0)
   createdAt     DateTime @default(now())
   post          Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-
   reactions     MediaReaction[]
   comments      MediaComment[]
 
@@ -278,26 +280,18 @@ model PostReaction {
 
 model Comment {
   id              String @id @default(uuid())
-
   postId          String
   authorId        String
-
   parentId        String?
-
   content         String @db.Text
-
   reactionsCount  Int @default(0)
   repliesCount    Int @default(0)
-
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
   post            Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   author          User @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
   parent          Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies         Comment[] @relation("CommentReplies")
-
   reactions       CommentReaction[]
   notifications Notification[]
   mentions        CommentMention[]
@@ -313,11 +307,8 @@ model CommentReaction {
 
   userId      String
   commentId   String
-
   type        ReactionType
-
   createdAt   DateTime @default(now())
-
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment     Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
@@ -329,14 +320,10 @@ model CommentReaction {
 
 model MediaReaction {
   id          String @id @default(uuid())
-
   userId      String
   mediaId     String
-
   type        ReactionType
-
   createdAt   DateTime @default(now())
-
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
   media       Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
@@ -347,18 +334,35 @@ model MediaReaction {
 
 model MediaComment {
   id          String @id @default(uuid())
-
   mediaId     String
   authorId    String
-
+  parentId    String?  
   content     String @db.Text
-
+  reactionsCount Int @default(0)  
+  repliesCount   Int @default(0) 
   createdAt   DateTime @default(now())
-
+  updatedAt   DateTime @updatedAt 
   media       Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   author      User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent      MediaComment? @relation("MediaCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     MediaComment[] @relation("MediaCommentReplies")
+  reactions   MediaCommentReaction[]
 
   @@index([mediaId, createdAt])
+  @@index([parentId])
+}
+
+model MediaCommentReaction {
+  id          String @id @default(uuid())
+  userId      String
+  commentId   String
+  type        ReactionType
+  createdAt   DateTime @default(now())
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment     MediaComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
 }
 
 

@@ -69,9 +69,8 @@ export class PostsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    // Cap limit to prevent abuse
     const safeLimit = Math.min(limit, 50);
-    
+
     return this.postsService.getUserPosts(userId, page, safeLimit);
   }
 
@@ -84,10 +83,10 @@ export class PostsController {
   ) {
     // Cap limit to prevent abuse
     const safeLimit = Math.min(limit, 50);
-    
+
     const posts = await this.postsService.getUserPosts(
-      targetUserId, 
-      page, 
+      targetUserId,
+      page,
       safeLimit,
     );
 
@@ -96,5 +95,14 @@ export class PostsController {
     }
 
     return posts;
+  }
+
+  @Post(':postId/share')
+  async sharePost(
+    @CurrentUser('sub') userId: string,
+    @Param('postId') postId: string,
+    @Body('caption') caption?: string,
+  ) {
+    return this.postsService.sharePost(userId, postId, caption);
   }
 }

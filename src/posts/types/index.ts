@@ -1,52 +1,71 @@
 import { Prisma } from 'generated/prisma/client';
 
-export type PostWithRelations = Prisma.PostGetPayload<{
-  include: {
-    media: true;
-
-    author: {
-      select: {
-        id: true;
-        email: true;
-
-        profile: {
-          select: {
-            firstName: true;
-            lastName: true;
-            avatarUrl: true;
-            username: true;
-          };
-        };
-      };
-    };
-
-    reactions: {
-      select: {
-        type: true;
-      };
-    };
-
-    _count: {
-      select: {
-        comments: true;
-      };
-    };
+// types/post.types.ts
+export interface PostWithRelations {
+  id: string;
+  content: string | null;
+  sharedCaption: string | null;
+  sharedPostId: string | null;
+  status: string;
+  visibility: string;
+  createdAt: Date;
+  updatedAt: Date;
+  sharesCount: number;
+  author: {
+    id: string;
+    email: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+      username: string;
+      avatarUrl: string | null;
+    } | null;
   };
-}>;
+  media: Array<{
+    id: string;
+    url: string | null;
+    type: string;
+    thumbnailUrl: string | null;
+    width: number | null;
+    height: number | null;
+  }>;
+  reactions: Array<{ type: string }>;
+  _count: {
+    comments: number;
+    reactions: number;
+  };
+}
 
+export interface OriginalPostWithRelations {
+  id: string;
+  content: string | null;
+  author: {
+    id: string;
+    email: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+      username: string;
+      avatarUrl: string | null;
+    } | null;
+  };
+  media: Array<{
+    id: string;
+    url: string | null;
+    type: string;
+    thumbnailUrl: string | null;
+    width: number | null;
+    height: number | null;
+  }>;
+  _count: {
+    comments: number;
+    reactions: number;
+  };
+}
 
-export type ReactionType =
-  | 'LIKE'
-  | 'LOVE'
-  | 'HAHA'
-  | 'WOW'
-  | 'SAD'
-  | 'ANGRY';
+export type ReactionType = 'LIKE' | 'LOVE' | 'HAHA' | 'WOW' | 'SAD' | 'ANGRY';
 
-export type FriendshipStatus =
-  | 'PENDING'
-  | 'ACCEPTED'
-  | 'BLOCKED';
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'BLOCKED';
 
 export type NotificationType =
   | 'FRIEND_REQUEST'
@@ -63,42 +82,19 @@ export type NotificationType =
   | 'MEDIA_COMMENT'
   | 'MESSAGE';
 
-export type MediaType =
-  | 'IMAGE'
-  | 'VIDEO'
-  | 'AUDIO';
+export type MediaType = 'IMAGE' | 'VIDEO' | 'AUDIO';
 
-export type Visibility =
-  | 'PUBLIC'
-  | 'FRIENDS'
-  | 'PRIVATE';
+export type Visibility = 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
 
-export type MessageType =
-  | 'TEXT'
-  | 'IMAGE'
-  | 'VIDEO'
-  | 'AUDIO'
-  | 'SYSTEM';
+export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'SYSTEM';
 
-export type UserRole =
-  | 'USER'
-  | 'ADMIN'
-  | 'MODERATOR';
+export type UserRole = 'USER' | 'ADMIN' | 'MODERATOR';
 
-export type Gender =
-  | 'MALE'
-  | 'FEMALE'
-  | 'OTHER';
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
-export type AuthProvider =
-  | 'EMAIL'
-  | 'GOOGLE'
-  | 'APPLE';
+export type AuthProvider = 'EMAIL' | 'GOOGLE' | 'APPLE';
 
-export type PostStatus =
-  | 'PROCESSING'
-  | 'READY'
-  | 'FAILED';
+export type PostStatus = 'PROCESSING' | 'READY' | 'FAILED';
 
 export type MediaProcessingStatus =
   | 'PENDING'
