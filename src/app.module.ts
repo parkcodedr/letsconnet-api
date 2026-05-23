@@ -16,6 +16,7 @@ import { CommentsService } from './comments/comments.service';
 import { CommentsController } from './comments/comments.controller';
 import { CommentsModule } from './comments/comments.module';
 import { MediaModule } from './media/media.module';
+import { FriendshipModule } from './friendship/friendship.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MediaModule } from './media/media.module';
     RedisCacheModule,
     CommentsModule,
     MediaModule,
+    FriendshipModule,
   ],
   controllers: [AppController, PostReactionsController, CommentsController],
   providers: [
