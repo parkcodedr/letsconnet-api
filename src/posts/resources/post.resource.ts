@@ -14,6 +14,7 @@ export interface PostResource {
   updatedAt: Date;
   isShared: boolean;
   userReaction?: string | null;
+  author: AuthorResource;
   originalPost?: OriginalPostResource | null;
 }
 export interface OriginalPostResource {
@@ -75,7 +76,6 @@ export interface OriginalPostDetailResource {
 }
 
 export class PostResourceMapper {
- 
   static toPostResource(
     post: any,
     userId?: string,
@@ -89,10 +89,9 @@ export class PostResourceMapper {
       sharedCaption: post.sharedCaption,
       status: post.status,
       visibility: post.visibility,
-      thumbnailUrl: post.media?.[0]?.url || null, 
+      thumbnailUrl: post.media?.[0]?.url || null,
       media:
         post.media?.map((m: any) => ({
-        
           id: m.id,
           url: m.url,
           type: m.type,
@@ -108,6 +107,7 @@ export class PostResourceMapper {
       updatedAt: post.updatedAt,
       isShared,
       userReaction: post.reactions?.[0]?.type || null,
+      author: this.toAuthorResource(post.author),
       originalPost: originalPostData
         ? this.toOriginalPostResource(originalPostData)
         : null,

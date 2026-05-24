@@ -40,13 +40,25 @@ export class PostsService {
         where: {
           authorId: userId,
           status: 'READY',
-         
         },
         include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              profile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  username: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
           media: {
             where: { status: 'READY', url: { not: null } },
             orderBy: { order: 'asc' },
-            
           },
           reactions: {
             where: { userId },
@@ -84,6 +96,7 @@ export class PostsService {
           author: {
             select: {
               id: true,
+              email: true, // Add email if needed
               profile: {
                 select: {
                   firstName: true,
@@ -97,7 +110,6 @@ export class PostsService {
           media: {
             where: { status: 'READY' },
             orderBy: { order: 'asc' },
-            
           },
           _count: {
             select: { reactions: true, comments: true },

@@ -363,7 +363,7 @@ export class FriendshipService {
       },
     });
 
-    // Extract friend IDs
+  
     const friendIds = friendships.map((f) =>
       f.requesterId === userId ? f.receiverId : f.requesterId,
     );
