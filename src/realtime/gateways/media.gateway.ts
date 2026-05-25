@@ -8,10 +8,17 @@ import {
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { SocketEvents } from '../constant/socket-events';
+import { WsJwtGuard } from 'src/auth/guards/ws-jwt.guard';
+import { UseGuards } from '@nestjs/common';
 
 @WebSocketGateway({
-  cors: true,
+  cors: {
+    origin: ['http://localhost:3001', 'http://192.168.0.100:3000'],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
 })
+@UseGuards(WsJwtGuard)
 export class MediaGateway {
   @WebSocketServer()
   server!: Server;
@@ -43,5 +50,12 @@ export class MediaGateway {
     payload: { mediaId: string; status: string; error: string },
   ) {
     this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_ERROR, payload);
+  }
+
+  emitChatMediaReady(chatId: string, payload: any) {
+    this.server.to(`chat:${chatId}`).emit('chat-media-ready', payload);
+  }
+  emitChatMediaError(chatId: string, payload: any) {
+    this.server.to(`chat:${chatId}`).emit('chat-media-error', payload);
   }
 }

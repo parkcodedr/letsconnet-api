@@ -18,6 +18,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { FilesUploadInterceptor } from 'src/common/interceptors/files-upload.interceptor';
 
+
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
 export class PostsController {

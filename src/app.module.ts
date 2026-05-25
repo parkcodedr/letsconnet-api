@@ -18,6 +18,9 @@ import { CommentsModule } from './comments/comments.module';
 import { MediaModule } from './media/media.module';
 import { FriendshipModule } from './friendship/friendship.module';
 import { FeedModule } from './feed/feed.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -40,6 +43,10 @@ import { FeedModule } from './feed/feed.module';
     MediaModule,
     FriendshipModule,
     FeedModule,
+    
+    RealtimeModule,
+    
+    ChatModule
   ],
   controllers: [AppController, PostReactionsController, CommentsController],
   providers: [

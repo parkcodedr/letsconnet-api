@@ -521,7 +521,10 @@ model ChatParticipant {
   user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([chatId, userId])
+  @@index([userId])
+  @@index([lastReadAt])
 }
+
 
 model Message {
   id            String @id @default(uuid())
@@ -529,16 +532,42 @@ model Message {
   senderId      String
   type          MessageType @default(TEXT)
   content       String? @db.Text
-  mediaUrl      String?
-  thumbnailUrl  String?
+  replyToId     String?   
+  deletedFor    String[]  
+  isForwarded   Boolean @default(false)
+  editedAt      DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
   chat          Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender        User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  media         MessageMedia[]
 
   @@index([chatId, createdAt])
+  @@index([senderId])
 }
 
+model MessageMedia {
+  id            String @id @default(uuid())
+  messageId     String
+  type          MediaType
+   url           String?
+  thumbnailUrl  String?
+  localPath     String?
+  width         Int?
+  height        Int?
+  duration      Int?
+  size          Int?
+  publicId      String?
+  order         Int @default(0)
+  status        MediaProcessingStatus @default(PENDING)
+
+  createdAt     DateTime @default(now())
+
+  message       Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
 
 
 model Notification {
@@ -561,6 +590,7 @@ model Notification {
   @@index([receiverId, isRead, createdAt])
   @@index([postId])
   @@index([commentId])
+  @@index([createdAt]) // For cleanup jobs
 }
 
 
