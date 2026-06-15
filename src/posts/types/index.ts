@@ -1,6 +1,6 @@
 import { Prisma } from 'generated/prisma/client';
 
-// types/post.types.ts
+
 export interface PostWithRelations {
   id: string;
   content: string | null;

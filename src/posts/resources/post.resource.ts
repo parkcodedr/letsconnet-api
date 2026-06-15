@@ -25,6 +25,7 @@ export interface OriginalPostResource {
   reactionsCount: number;
   commentsCount: number;
   createdAt: Date;
+  media: MediaResource[];
 }
 
 export interface AuthorResource {
@@ -123,6 +124,7 @@ export class PostResourceMapper {
       reactionsCount: post._count?.reactions || 0,
       commentsCount: post._count?.comments || 0,
       createdAt: post.createdAt,
+      media: this.toMediaResources(post.media || []),
     };
   }
 

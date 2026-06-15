@@ -10,6 +10,7 @@ import { OriginalPostWithRelations, PostWithRelations } from './types';
 import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
 import { PostResourceMapper } from './resources/post.resource';
 import { ShareResourceMapper } from './resources/share.resource';
+import { UpdatePostDto } from './dto/update-post.dto';
 
 @Injectable()
 export class PostsService {
@@ -96,7 +97,7 @@ export class PostsService {
           author: {
             select: {
               id: true,
-              email: true, // Add email if needed
+              email: true,
               profile: {
                 select: {
                   firstName: true,
@@ -473,6 +474,109 @@ export class PostsService {
     await this.invalidatePostCache(postId);
 
     return ShareResourceMapper.toShareResponse(sharedPost, originalPost);
+  }
+
+  async updatePost(
+    userId: string,
+    postId: string,
+    dto: UpdatePostDto,
+    files?: Express.Multer.File[],
+  ) {
+    const post = await this.db.post.findFirst({
+      where: {
+        id: postId,
+        authorId: userId,
+      },
+      include: {
+        media: true,
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    const keepMediaIds = dto.keepMediaIds ?? [];
+
+    const mediaToDelete = post.media.filter(
+      (media) => !keepMediaIds.includes(media.id),
+    );
+
+    for (const media of mediaToDelete) {
+      if (media.publicId) {
+        try {
+          await this.storage.deletePostMedia(media.publicId, userId);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      if (media.localPath) {
+        await this.cleanupFile(media.localPath);
+      }
+    }
+
+    if (mediaToDelete.length) {
+      await this.db.media.deleteMany({
+        where: {
+          id: {
+            in: mediaToDelete.map((m) => m.id),
+          },
+        },
+      });
+    }
+    
+
+    await this.db.post.update({
+      where: {
+        id: postId,
+      },
+      data: {
+        content: dto.content?.trim() || null,
+      },
+    });
+
+    if (files?.length) {
+      await Promise.all(
+        files.map(async (file, index) => {
+          const media = await this.db.media.create({
+            data: {
+              postId,
+              type: this.getMediaType(file),
+              status: 'PENDING',
+              localPath: file.path,
+              order: keepMediaIds.length + index,
+            },
+          });
+
+          await this.mediaQueue.add('process-media', {
+            mediaId: media.id,
+            localPath: file.path,
+            mimeType: file.mimetype,
+            postId,
+            userId,
+          });
+        }),
+      );
+
+      await this.db.post.update({
+        where: { id: postId },
+        data: {
+          status: 'PROCESSING',
+        },
+      });
+    }
+
+    await this.invalidatePostCache(postId);
+    await this.invalidateUserPostsCache(userId);
+
+    return {
+      success: true,
+      status: post.status,
+      message: files?.length
+        ? 'Post updated, media processing started'
+        : 'Post updated successfully',
+    };
   }
   private getMediaType(file: Express.Multer.File): 'IMAGE' | 'VIDEO' | 'AUDIO' {
     if (file.mimetype.startsWith('image')) return 'IMAGE';

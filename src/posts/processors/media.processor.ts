@@ -119,14 +119,25 @@ export class MediaProcessor extends WorkerHost {
           where: { id: finalPostId },
           data: { status: 'READY' },
         });
-      }
 
-      this.mediaGateway.emitMediaReady(finalPostId, {
-        mediaId,
-        status: 'READY',
-        url: uploaded.url,
-        thumbnailUrl,
-      });
+        const completedPost = await this.db.post.findUnique({
+          where: { id: finalPostId },
+          include: {
+            author: true,
+            media: {
+              orderBy: {
+                order: 'asc',
+              },
+            },
+          },
+        });
+
+        this.mediaGateway.emitPostReady(finalUserId, {
+          postId: finalPostId,
+          post: completedPost,
+          status: 'READY',
+        });
+      }
 
       await this.cleanupFile(localPath);
       if (processedPath !== localPath) {
@@ -145,10 +156,9 @@ export class MediaProcessor extends WorkerHost {
         data: { status: 'FAILED' },
       });
 
-      this.mediaGateway.emitMediaError(postId, {
-        mediaId,
+      this.mediaGateway.emitPostError(postId, {
+        postId: postId,
         status: 'FAILED',
-        error: 'Upload failed',
       });
 
       await this.cleanupFile(localPath).catch(() => {});

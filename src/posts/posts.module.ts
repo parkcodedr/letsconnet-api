@@ -5,21 +5,17 @@ import { PostsService } from './posts.service';
 import { DatabaseModule } from 'src/database/database.module';
 import { StorageModule } from 'src/common/storage/storage.module';
 import { MediaProcessor } from './processors/media.processor';
-import { MediaGateway } from 'src/realtime/gateways/media.gateway';
-
-
+import { RealtimeModule } from 'src/realtime/realtime.module';
 
 @Module({
   imports: [
     DatabaseModule,
     StorageModule,
-    BullModule.registerQueue({
-      name: 'media-processing',
-    }),
+    BullModule.registerQueue({ name: 'media-processing' }),
+
+    RealtimeModule,
   ],
-
   controllers: [PostsController],
-
-  providers: [PostsService, MediaProcessor,MediaGateway],
+  providers: [PostsService, MediaProcessor],
 })
 export class PostsModule {}

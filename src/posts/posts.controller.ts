@@ -11,13 +11,15 @@ import {
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
+  Delete,
+  Patch,
 } from '@nestjs/common';
 
 import { PostsService } from './posts.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { FilesUploadInterceptor } from 'src/common/interceptors/files-upload.interceptor';
-
+import { UpdatePostDto } from './dto/update-post.dto';
 
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
@@ -82,7 +84,6 @@ export class PostsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    // Cap limit to prevent abuse
     const safeLimit = Math.min(limit, 50);
 
     const posts = await this.postsService.getUserPosts(
@@ -105,5 +106,29 @@ export class PostsController {
     @Body('caption') caption?: string,
   ) {
     return this.postsService.sharePost(userId, postId, caption);
+  }
+
+  @Delete(':postId')
+  async deletePost(
+    @CurrentUser('sub') userId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.postsService.deletePost(userId, postId);
+  }
+
+  @Patch(':postId')
+  @FilesUploadInterceptor({
+    fieldName: 'files',
+    maxCount: 10,
+    destination: './uploads/raw',
+    maxFileSize: 600,
+  })
+  async updatePost(
+    @CurrentUser('sub') userId: string,
+    @Param('postId') postId: string,
+    @Body() dto: UpdatePostDto,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    return this.postsService.updatePost(userId, postId, dto, files);
   }
 }
