@@ -29,8 +29,6 @@ import { ReactionType } from 'src/posts/types';
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
- 
-
   @Post(':mediaId/reactions')
   @HttpCode(HttpStatus.OK)
   async reactToMedia(
@@ -202,5 +200,13 @@ export class MediaController {
     @CurrentUser('sub') userId: string,
   ) {
     return this.mediaService.getMediaWithDetails(mediaId, userId);
+  }
+
+  @Get(':mediaId/viewer')
+  getMediaViewerData(
+    @Param('mediaId') mediaId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.mediaService.getMediaViewerData(mediaId, userId);
   }
 }

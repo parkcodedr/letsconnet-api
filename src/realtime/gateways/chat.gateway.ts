@@ -1,193 +1,101 @@
-// src/chat/chat.gateway.ts
 import {
   WebSocketGateway,
-  WebSocketServer,
   SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  ConnectedSocket,
   MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
-import { WsJwtGuard, AuthenticatedSocket } from 'src/auth/guards/ws-jwt.guard';
-import {
-  SendMessageDto,
-  TypingDto,
-  MarkReadDto,
-  DeleteMessageDto,
-  ForwardMessageDto,
-  ClearChatDto,
-} from 'src/chat/dto/chat.dto';
-import { ChatService } from 'src/chat/chat.service';
+import { Logger } from '@nestjs/common';
+import { AuthenticatedSocket } from '../adapters/socket-io.adapter';
+import { BaseGateway } from './base.gateway';
+import { ChatEvents, SocketNamespaces } from '../constant/socket-events';
 
-@WebSocketGateway({
-  cors: { origin: ['http://localhost:3001'], credentials: true },
-  namespace: 'chat',
-})
-@UseGuards(WsJwtGuard)
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer() server!: Server;
-  private userRooms = new Map<string, Set<string>>();
+interface JoinChatDto {
+  chatId: string;
+}
 
-  constructor(private chatService: ChatService) {}
+interface TypingDto {
+  chatId: string;
+}
 
-  async handleConnection(client: AuthenticatedSocket) {
-    const userId = client.user?.id;
-    if (!userId) return client.disconnect();
-    await this.chatService.setUserOnline(userId);
-    client.join(`user:${userId}`);
+interface MarkReadDto {
+  chatId: string;
+  messageId: string;
+}
+
+@WebSocketGateway({ namespace: SocketNamespaces.CHAT })
+export class ChatGateway extends BaseGateway {
+  protected readonly logger = new Logger(ChatGateway.name);
+
+  handleConnection(client: AuthenticatedSocket): void {
+    const ok = this.onConnect(client);
+    if (!ok) return;
+
+    client.emit(ChatEvents.CONNECTED, { userId: client.user.sub });
   }
 
-  async handleDisconnect(client: AuthenticatedSocket) {
-    const userId = client.user?.id;
-    if (userId) {
-      await this.chatService.setUserOffline(userId);
-      const rooms = this.userRooms.get(userId);
-      if (rooms) rooms.forEach((rid) => client.leave(`chat:${rid}`));
-      this.userRooms.delete(userId);
-    }
-  }
-
-  @SubscribeMessage('join-chat')
-  async handleJoinChat(
+  @SubscribeMessage(ChatEvents.JOIN_CHAT)
+  handleJoinChat(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() chatId: string,
-  ) {
-    const userId = client.user!.id; // non‑null assertion (guard ensures user exists)
-    const ok = await this.chatService.verifyParticipant(chatId, userId);
-    if (!ok) return { error: 'Not authorized' };
+    @MessageBody() { chatId }: JoinChatDto,
+  ): void {
     client.join(`chat:${chatId}`);
-    if (!this.userRooms.has(userId)) this.userRooms.set(userId, new Set());
-    this.userRooms.get(userId)!.add(chatId);
-    const presences = await this.chatService.getChatPresence(userId, chatId);
-    client.emit('presence-update', presences);
-    return { success: true };
+    this.logger.debug(`${client.user.sub} joined chat:${chatId}`);
   }
 
-  @SubscribeMessage('leave-chat')
+  @SubscribeMessage(ChatEvents.LEAVE_CHAT)
   handleLeaveChat(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() chatId: string,
-  ) {
-    const userId = client.user!.id;
+    @MessageBody() { chatId }: JoinChatDto,
+  ): void {
     client.leave(`chat:${chatId}`);
-    this.userRooms.get(userId)?.delete(chatId);
-    return { success: true };
   }
 
-  @SubscribeMessage('send-message')
-  async handleSendMessage(
+  @SubscribeMessage(ChatEvents.TYPING_START)
+  handleTypingStart(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { chatId: string; message: SendMessageDto },
-  ) {
-    const userId = client.user!.id;
-    const message = await this.chatService.sendMessage(
-      userId,
-      data.chatId,
-      data.message,
-    );
-    this.server.to(`chat:${data.chatId}`).emit('new-message', message);
-    const participantIds = await this.chatService.getChatParticipantIds(
-      data.chatId,
-    );
-    participantIds.forEach((pid) => {
-      if (pid !== userId)
-        this.server
-          .to(`user:${pid}`)
-          .emit('unread-update', { chatId: data.chatId });
+    @MessageBody() { chatId }: TypingDto,
+  ): void {
+    client.to(`chat:${chatId}`).emit(ChatEvents.TYPING, {
+      chatId,
+      userId: client.user.sub,
+      isTyping: true,
     });
-    return message;
   }
 
-  @SubscribeMessage('typing')
-  async handleTyping(
+  @SubscribeMessage(ChatEvents.TYPING_STOP)
+  handleTypingStop(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: TypingDto,
-  ) {
-    const userId = client.user!.id;
-    client
-      .to(`chat:${data.chatId}`)
-      .emit('typing', { userId, isTyping: data.isTyping });
+    @MessageBody() { chatId }: TypingDto,
+  ): void {
+    client.to(`chat:${chatId}`).emit(ChatEvents.TYPING, {
+      chatId,
+      userId: client.user.sub,
+      isTyping: false,
+    });
   }
 
-  @SubscribeMessage('mark-read')
-  async handleMarkRead(
+  @SubscribeMessage(ChatEvents.MARK_READ)
+  handleMarkRead(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: MarkReadDto,
-  ) {
-    const userId = client.user!.id;
-    await this.chatService.markMessagesAsRead(
-      userId,
-      data.chatId,
-      data.messageId,
-    );
-    client
-      .to(`chat:${data.chatId}`)
-      .emit('read-receipt', {
-        userId,
-        chatId: data.chatId,
-        messageId: data.messageId,
-      });
-    return { success: true };
+    @MessageBody() { chatId, messageId }: MarkReadDto,
+  ): void {
+    client.to(`chat:${chatId}`).emit(ChatEvents.MESSAGE_READ, {
+      chatId,
+      messageId,
+      userId: client.user.sub,
+      readAt: new Date().toISOString(),
+    });
   }
 
-  @SubscribeMessage('delete-message')
-  async handleDeleteMessage(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: DeleteMessageDto,
-  ) {
-    const userId = client.user!.id;
-    const result = await this.chatService.deleteMessage(
-      userId,
-      data.messageId,
-      data.deleteType,
-    );
-    if (data.deleteType === 'FOR_EVERYONE') {
-      this.server
-        .to(`chat:${data.chatId}`)   // ✅ now data.chatId exists
-        .emit('message-deleted', {
-          messageId: data.messageId,
-          forEveryone: true,
-        });
-    } else {
-      client.emit('message-deleted', {
-        messageId: data.messageId,
-        forEveryone: false,
-      });
-    }
-    return result;
+  emitNewMessage(chatId: string, payload: Record<string, unknown>): void {
+    this.emitToRoom(`chat:${chatId}`, ChatEvents.NEW_MESSAGE, payload);
   }
 
-  @SubscribeMessage('forward-message')
-  async handleForwardMessage(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: ForwardMessageDto,
-  ) {
-    const userId = client.user!.id;
-    const forwarded = await this.chatService.forwardMessage(userId, data);
-    for (const chatId of data.targetChatIds) {
-      this.server.to(`chat:${chatId}`).emit(
-        'new-message',
-        forwarded.find((f) => f.chatId === chatId),
-      );
-    }
-    return forwarded;
+  emitUserOnline(userId: string): void {
+    this.server.emit(ChatEvents.USER_ONLINE, { userId });
   }
 
-  @SubscribeMessage('clear-chat')
-  async handleClearChat(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: ClearChatDto,
-  ) {
-    const userId = client.user!.id;
-    await this.chatService.clearChat(userId, data.chatId);
-    client.emit('chat-cleared', { chatId: data.chatId });
-    return { success: true };
-  }
-
-  @SubscribeMessage('presence-ping')
-  async handlePresencePing(@ConnectedSocket() client: AuthenticatedSocket) {
-    await this.chatService.setUserOnline(client.user!.id);
+  emitUserOffline(userId: string): void {
+    this.server.emit(ChatEvents.USER_OFFLINE, { userId });
   }
 }

@@ -132,10 +132,10 @@ export class NotificationsService {
       },
     });
 
-    this.notificationsGateway.sendToUser(data.receiverId, 'new_notification', {
-      notification,
-      unreadCount: await this.getUnreadCount(data.receiverId),
-    });
+    // this.notificationsGateway.sendToUser(data.receiverId, 'new_notification', {
+    //   notification,
+    //   unreadCount: await this.getUnreadCount(data.receiverId),
+    // });
 
     await this.notificationsGateway.updateUnreadCount(data.receiverId);
     await this.invalidateNotificationCache(data.receiverId);

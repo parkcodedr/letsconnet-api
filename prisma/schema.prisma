@@ -51,6 +51,12 @@ enum MediaType {
   AUDIO
 }
 
+enum STORYMediaType {
+  IMAGE
+  VIDEO
+ 
+}
+
 enum Visibility {
   PUBLIC
   FRIENDS
@@ -91,6 +97,12 @@ enum PostStatus {
 
 enum MediaProcessingStatus {
   PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum StoryStatus {
   PROCESSING
   READY
   FAILED
@@ -153,6 +165,12 @@ model User {
   blocksInitiated   Block[] @relation("Blocker")
   blocksReceived    Block[] @relation("Blocked")
 
+  stories              Story[]
+  storyViews           StoryView[]
+  storyReactions       StoryReaction[]
+  storyRepliesSent     StoryReply[] @relation("StoryReplySender")
+  storyRepliesReceived StoryReply[] @relation("StoryReplyReceiver")
+
   @@index([email])
   @@index([role])
 }
@@ -187,20 +205,16 @@ model Profile {
 
   firstName   String
   lastName    String
-
   gender      Gender
-
   phoneNumber String?
-
   dateOfBirth DateTime
-
   bio         String?  @db.VarChar(300)
-
   avatarUrl   String?
   coverUrl    String?
-
   website     String?
-  location    String?
+  city        String?
+  state       String?
+  country     String?
 
   followersCount Int @default(0)
   followingCount Int @default(0)
@@ -211,16 +225,15 @@ model Profile {
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([username])
+  @@index([city])      
+  @@index([country]) 
 }
 
 
 model Post {
   id              String   @id @default(uuid())
-
   authorId        String
-
   content         String?  @db.Text
-
   status          PostStatus @default(PROCESSING)
   visibility      Visibility @default(PUBLIC)
   sharedPostId    String?  
@@ -604,4 +617,96 @@ model Block {
   blocked     User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
+}
+
+model Story {
+  id            String @id @default(uuid())
+
+  userId        String
+  caption       String?
+  status        StoryStatus @default(PROCESSING)
+
+  viewsCount    Int @default(0)
+  reactionsCount Int @default(0)
+  repliesCount   Int @default(0)
+
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  media         StoryMedia[]
+  views         StoryView[]
+  reactions     StoryReaction[]
+  replies       StoryReply[]
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model StoryMedia {
+  id            String @id @default(uuid())
+  storyId       String
+  type          STORYMediaType
+  status        MediaProcessingStatus @default(PENDING)
+
+  url           String?
+  thumbnailUrl  String?
+  localPath     String?
+  publicId      String?
+
+  width         Int?
+  height        Int?
+  duration      Int?
+  order         Int @default(0)
+  createdAt     DateTime @default(now())
+  story         Story @relation(fields: [storyId],references: [id],onDelete: Cascade)
+
+  @@index([storyId])
+}
+
+model StoryView {
+  id        String @id @default(uuid())
+  storyId   String
+  userId    String
+  viewedAt  DateTime @default(now())
+
+  story     Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([userId])
+}
+
+model StoryReaction {
+  id        String @id @default(uuid())
+
+  storyId   String
+  userId    String
+  type      ReactionType
+  createdAt DateTime @default(now())
+  story     Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+}
+
+model StoryReply {
+  id          String @id @default(uuid())
+
+  storyId     String
+  senderId    String
+  receiverId  String
+
+  message     String @db.Text
+  createdAt   DateTime @default(now())
+  story       Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  sender      User @relation("StoryReplySender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User @relation("StoryReplyReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+  @@index([receiverId])
 }

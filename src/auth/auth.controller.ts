@@ -37,17 +37,23 @@ export class AuthController {
   refresh(
     @Body()
     body: {
-      userId: string;
       refreshToken: string;
     },
+    @CurrentUser('sub') userId: string,
   ) {
     return this.authService.refreshTokens(body.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@CurrentUser('sub') userId: string, refreshToken: string) {
-    return this.authService.logout(userId, refreshToken);
+  logout(
+    @CurrentUser('sub') userId: string,
+    @Body()
+    body: {
+      refreshToken: string;
+    },
+  ) {
+    return this.authService.logout(userId, body.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)

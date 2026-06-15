@@ -1,23 +1,69 @@
-export const SocketEvents = {
-  CONNECT: 'connect',
-  DISCONNECT: 'disconnect',
+export const SocketNamespaces = {
+  MEDIA: '/media',
+  CHAT: '/chat',
+  SIGNAL: '/signal',
+  NOTIFICATIONS: '/notifications',
+  POST: '/post',
+  STORIES: '/stories',
+} as const;
 
-  JOIN_POST: 'join-post',
-  LEAVE_POST: 'leave-post',
+export const NotificationEvents = {
+  
+  MARK_READ: 'notification:read',
+  MARK_ALL_READ: 'notification:read:all',
+ 
+  CONNECTED: 'connected',
+  NEW_NOTIFICATION: 'notification:new',
+  UNREAD_COUNT: 'notification:count',
+};
 
-  MEDIA_PROCESSING: 'media-processing',
-  MEDIA_READY: 'media-ready',
-  MEDIA_FAILED: 'media-failed',
-  MEDIA_ERROR: 'media-error',
+export const MediaEvents = {
+ 
+  CONNECTED: 'connected',
+  POST_READY: 'post:ready',
+  POST_ERROR: 'post:error',
+  MEDIA_PROCESSING: 'media:processing',
+  MEDIA_READY: 'media:ready',
+  MEDIA_ERROR: 'media:error',
+  NOTIFICATION: 'notification',
+} as const;
 
-  NEW_NOTIFICATION: 'new_notification',
-  NOTIFICATION_COUNT: 'notification_count',
-  MARK_NOTIFICATION_READ: 'mark_notification_read',
-  MARK_ALL_NOTIFICATIONS_READ: 'mark_all_notifications_read',
+export const ChatEvents = {
+  
+  JOIN_CHAT: 'chat:join',
+  LEAVE_CHAT: 'chat:leave',
+  SEND_MESSAGE: 'chat:send',
+  TYPING_START: 'chat:typing:start',
+  TYPING_STOP: 'chat:typing:stop',
+  MARK_READ: 'chat:read',
 
-  MESSAGE: 'message',
-  TYPING: 'typing',
-  READ: 'read',
+ 
+  CONNECTED: 'connected',
+  NEW_MESSAGE: 'chat:message',
+  TYPING: 'chat:typing',
+  MESSAGE_READ: 'chat:message:read',
+  USER_ONLINE: 'chat:user:online',
+  USER_OFFLINE: 'chat:user:offline',
+} as const;
 
-  PRESENCE: 'presence',
+export const SignalEvents = {
+
+  CALL_OFFER: 'signal:offer',
+  CALL_ANSWER: 'signal:answer',
+  ICE_CANDIDATE: 'signal:ice',
+  CALL_END: 'signal:end',
+
+  // Server → client
+  CONNECTED: 'connected',
+  INCOMING_CALL: 'signal:incoming',
+  CALL_ACCEPTED: 'signal:accepted',
+  CALL_REJECTED: 'signal:rejected',
+  CALL_ENDED: 'signal:ended',
+  ICE_RELAY: 'signal:ice:relay',
+} as const;
+
+export const StoryEvents = {
+  CONNECTED: 'connected',
+  STORY_READY: 'story:ready',
+  STORY_ERROR: 'story:error',
 } as const;

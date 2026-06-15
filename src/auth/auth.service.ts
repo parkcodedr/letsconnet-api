@@ -122,7 +122,6 @@ export class AuthService {
     await this.createSession({
       userId: user.id,
       refreshToken: tokens.refreshToken,
-
       ipAddress: meta?.ipAddress,
       userAgent: meta?.userAgent,
       deviceName: meta?.deviceName,
@@ -226,7 +225,6 @@ export class AuthService {
 
     for (const session of sessions) {
       const matches = await verifyHash(session.refreshTokenHash, refreshToken);
-
       if (matches) {
         await this.database.userSession.update({
           where: {
@@ -288,6 +286,7 @@ export class AuthService {
 
       this.jwtService.signAsync(payload, {
         secret: jwtConstants.refreshSecret,
+      
         expiresIn: '30d',
       }),
     ]);

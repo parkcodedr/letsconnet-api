@@ -1,4 +1,3 @@
-
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
@@ -26,7 +25,7 @@ export class WsJwtGuard implements CanActivate {
         throw new WsException('Unauthorized: No token provided');
       }
 
-      const secret = this.configService.get<string>('JWT_SECRET');
+      const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
       if (!secret) {
         throw new WsException('Server configuration error: JWT_SECRET not set');
       }
@@ -43,7 +42,6 @@ export class WsJwtGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      
       const wsError = error as Error;
       console.error('WebSocket authentication error:', wsError.message);
       throw new WsException('Unauthorized: Invalid token');
@@ -51,6 +49,8 @@ export class WsJwtGuard implements CanActivate {
   }
 
   private extractToken(client: AuthenticatedSocket): string | null {
+    console.log({client});
+    
     if (client.handshake.auth?.token) {
       return client.handshake.auth.token;
     }

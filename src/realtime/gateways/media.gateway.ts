@@ -1,61 +1,44 @@
-import { AuthenticatedSocket } from '../type/auth';
-import {
-  WebSocketGateway,
-  SubscribeMessage,
-  WebSocketServer,
-  ConnectedSocket,
-  MessageBody,
-} from '@nestjs/websockets';
-import { Server } from 'socket.io';
-import { SocketEvents } from '../constant/socket-events';
-import { WsJwtGuard } from 'src/auth/guards/ws-jwt.guard';
-import { UseGuards } from '@nestjs/common';
 
-@WebSocketGateway({
-  cors: {
-    origin: ['http://localhost:3001', 'http://192.168.0.100:3000'],
-    credentials: true,
-  },
-  transports: ['websocket', 'polling'],
-})
-@UseGuards(WsJwtGuard)
-export class MediaGateway {
-  @WebSocketServer()
-  server!: Server;
+import { WebSocketGateway } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
+import { AuthenticatedSocket } from '../adapters/socket-io.adapter';
+import { BaseGateway } from './base.gateway';
+import { MediaEvents, SocketNamespaces } from '../constant/socket-events';
 
-  handleConnection(client: AuthenticatedSocket) {
-    console.log('media socket connected');
+@WebSocketGateway({ namespace: SocketNamespaces.MEDIA })
+export class MediaGateway extends BaseGateway {
+  protected readonly logger = new Logger(MediaGateway.name);
+
+  handleConnection(client: AuthenticatedSocket): void {
+    const ok = this.onConnect(client);
+    if (!ok) return;
+
+    client.emit(MediaEvents.CONNECTED, { userId: client.user.sub });
   }
 
-  @SubscribeMessage(SocketEvents.JOIN_POST)
-  handleJoinPost(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() postId: string,
-  ) {
-    client.join(`post:${postId}`);
+  emitMediaReady(userId: string, payload: Record<string, unknown>): void {
+    this.logger.log(`MEDIA_READY → user(${userId})`);
+    this.emitToUser(userId, MediaEvents.MEDIA_READY, payload);
   }
 
-  emitMediaReady(postId: string, payload: unknown) {
-    this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_READY, payload);
+  emitMediaProcessing(userId: string, payload: Record<string, unknown>): void {
+    this.emitToUser(userId, MediaEvents.MEDIA_PROCESSING, payload);
   }
 
-  emitMediaProcessing(postId: string, status: string) {
-    this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_PROCESSING, {
-      status,
-    });
+  emitMediaError(userId: string, payload: Record<string, unknown>): void {
+    this.logger.warn(`MEDIA_ERROR → user(${userId})`);
+    this.emitToUser(userId, MediaEvents.MEDIA_ERROR, payload);
   }
 
-  emitMediaError(
-    postId: string,
-    payload: { mediaId: string; status: string; error: string },
-  ) {
-    this.server.to(`post:${postId}`).emit(SocketEvents.MEDIA_ERROR, payload);
+  emitPostReady(userId: string, payload: any) {
+    this.server.to(userId).emit(MediaEvents.POST_READY, payload);
   }
 
-  emitChatMediaReady(chatId: string, payload: any) {
-    this.server.to(`chat:${chatId}`).emit('chat-media-ready', payload);
+  emitPostError(userId: string, payload: any) {
+    this.server.to(userId).emit(MediaEvents.POST_ERROR, payload);
   }
-  emitChatMediaError(chatId: string, payload: any) {
-    this.server.to(`chat:${chatId}`).emit('chat-media-error', payload);
+
+  emitNotification(userId: string, payload: Record<string, unknown>): void {
+    this.emitToUser(userId, MediaEvents.NOTIFICATION, payload);
   }
 }

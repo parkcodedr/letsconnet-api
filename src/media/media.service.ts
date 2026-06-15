@@ -978,7 +978,55 @@ export class MediaService {
     return result;
   }
 
-  // ============ HELPER METHODS ============
+  async getMediaViewerData(mediaId: string, userId: string) {
+    const cacheKey = `media:viewer:${mediaId}:${userId}`;
+
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const media = await this.db.media.findUnique({
+      where: { id: mediaId },
+      include: {
+        post: {
+          select: {
+            id: true,
+            content: true,
+            author: {
+              select: {
+                id: true,
+                email: true,
+                profile: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    username: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!media) throw new NotFoundException('Media not found');
+
+    const [reactions, comments] = await Promise.all([
+      this.getMediaReactionSummary(mediaId, userId),
+      this.getMediaComments(mediaId, userId, 1, 20, 'newest'),
+    ]);
+
+    const result = { media, reactions, comments };
+
+    await this.redis.setex(cacheKey, 120, JSON.stringify(result));
+    return result;
+  }
+
+  private async invalidateMediaViewerCache(mediaId: string) {
+    const keys = await this.redis.keys(`media:viewer:${mediaId}:*`);
+    if (keys.length) await this.redis.del(...keys);
+  }
 
   private async invalidateMediaReactionsCache(mediaId: string) {
     const keys = await this.redis.keys(
@@ -987,6 +1035,7 @@ export class MediaService {
     if (keys.length) {
       await this.redis.del(...keys);
     }
+    await this.invalidateMediaViewerCache(mediaId);
   }
 
   private async invalidateMediaCommentsCache(mediaId: string) {
@@ -996,6 +1045,7 @@ export class MediaService {
     if (keys.length) {
       await this.redis.del(...keys);
     }
+    await this.invalidateMediaViewerCache(mediaId);
   }
 
   private async invalidateMediaCommentRepliesCache(commentId: string) {

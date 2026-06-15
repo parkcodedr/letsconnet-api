@@ -122,12 +122,12 @@ export class ChatMediaProcessor extends WorkerHost {
         },
       });
 
-      this.mediaGateway.emitChatMediaReady(chatId, {
-        messageId,
-        mediaId: messageMediaId,
-        url: uploaded.url,
-        thumbnailUrl,
-      });
+      // this.mediaGateway.emitChatMediaReady(chatId, {
+      //   messageId,
+      //   mediaId: messageMediaId,
+      //   url: uploaded.url,
+      //   thumbnailUrl,
+      // });
 
       await this.cleanupFile(localPath);
       if (processedPath !== localPath) await this.cleanupFile(processedPath);
@@ -142,11 +142,11 @@ export class ChatMediaProcessor extends WorkerHost {
         error,
       );
       await this.cleanupFile(localPath).catch(() => {});
-      this.mediaGateway.emitChatMediaError(chatId, {
-        messageId,
-        mediaId: messageMediaId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      // this.mediaGateway.emitChatMediaError(chatId, {
+      //   messageId,
+      //   mediaId: messageMediaId,
+      //   error: error instanceof Error ? error.message : 'Unknown error',
+      // });
     }
   }
 

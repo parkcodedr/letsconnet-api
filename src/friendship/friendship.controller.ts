@@ -22,6 +22,7 @@ import {
   GetFriendsQueryDto,
   GetFriendRequestsQueryDto,
 } from './dto/friendship.dto';
+import { FriendRequestAction } from './type';
 
 @Controller('friends')
 @UseGuards(JwtAuthGuard)
@@ -37,23 +38,23 @@ export class FriendshipController {
     return this.friendshipService.sendFriendRequest(userId, dto.receiverId);
   }
 
-  @Put('requests/:requesterId/accept')
-  @HttpCode(HttpStatus.OK)
-  async acceptFriendRequest(
-    @CurrentUser('sub') userId: string,
-    @Param('requesterId', ParseUUIDPipe) requesterId: string,
-  ) {
-    return this.friendshipService.acceptFriendRequest(userId, requesterId);
-  }
+  // @Put('requests/:requesterId/accept')
+  // @HttpCode(HttpStatus.OK)
+  // async acceptFriendRequest(
+  //   @CurrentUser('sub') userId: string,
+  //   @Param('requesterId', ParseUUIDPipe) requesterId: string,
+  // ) {
+  //   return this.friendshipService.acceptFriendRequest(userId, requesterId);
+  // }
 
-  @Put('requests/:requesterId/decline')
-  @HttpCode(HttpStatus.OK)
-  async declineFriendRequest(
-    @CurrentUser('sub') userId: string,
-    @Param('requesterId', ParseUUIDPipe) requesterId: string,
-  ) {
-    return this.friendshipService.declineFriendRequest(userId, requesterId);
-  }
+  // @Put('requests/:requesterId/decline')
+  // @HttpCode(HttpStatus.OK)
+  // async declineFriendRequest(
+  //   @CurrentUser('sub') userId: string,
+  //   @Param('requesterId', ParseUUIDPipe) requesterId: string,
+  // ) {
+  //   return this.friendshipService.declineFriendRequest(userId, requesterId);
+  // }
 
   @Delete(':friendId')
   @HttpCode(HttpStatus.OK)
@@ -119,9 +120,10 @@ export class FriendshipController {
   @Get('suggestions')
   async getFriendSuggestions(
     @CurrentUser('sub') userId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    return this.friendshipService.getFriendSuggestions(userId, limit);
+    return this.friendshipService.getFriendSuggestions(userId, page, limit);
   }
 
   @Get('status/:userId')
@@ -131,4 +133,39 @@ export class FriendshipController {
   ) {
     return this.friendshipService.getFriendshipStatus(userId, targetUserId);
   }
+
+  @Get('requests/sent')
+  async getSentRequests(
+    @CurrentUser('sub') userId: string,
+    @Query() query: GetFriendRequestsQueryDto,
+  ) {
+    return this.friendshipService.getSentRequests(
+      userId,
+      query.page,
+      query.limit,
+    );
+  }
+
+  // @Delete('requests/:requestId/cancel')
+  // cancelFriendRequest(
+  //   @CurrentUser('sub') userId: string,
+  //   @Param('requestId') requestId: string,
+  // ) {
+  //   return this.friendshipService.cancelFriendRequest(userId, requestId);
+  // }
+
+  @Post('friend-requests/:id/action')
+  actionOnFriendRequest(
+    @CurrentUser('sub') userId: string,
+    @Param('id') requestId: string,
+    @Body() body: { action: FriendRequestAction },
+  ) {
+    return this.friendshipService.handleRequestAction(
+      userId,
+      requestId,
+      body.action,
+    );
+  }
+
+  
 }

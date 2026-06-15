@@ -1,120 +1,107 @@
+// src/realtime/gateways/notifications.gateway.ts
 import {
   WebSocketGateway,
-  WebSocketServer,
   SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  ConnectedSocket,
   MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import { forwardRef, Inject, UseGuards } from '@nestjs/common';
-import { AuthenticatedSocket } from 'src/realtime/type/auth';
-import { SocketEvents } from 'src/realtime/constant/socket-events';
-import { DatabaseService } from 'src/database/database.service';
+import { forwardRef, Inject, Logger } from '@nestjs/common';
+import { AuthenticatedSocket } from '../adapters/socket-io.adapter';
+import { BaseGateway } from './base.gateway';
+import {
+  NotificationEvents,
+  SocketNamespaces,
+} from '../constant/socket-events';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { WsJwtGuard } from 'src/auth/guards/ws-jwt.guard';
+import { DatabaseService } from 'src/database/database.service';
 
-@WebSocketGateway({
-  cors: true,
-  namespace: 'notifications',
-})
-@UseGuards(WsJwtGuard)
-export class NotificationsGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
-  @WebSocketServer()
-  server!: Server;
+interface MarkReadDto {
+  notificationId: string;
+}
 
-  private userSockets = new Map<string, Set<string>>();
-  private socketUserMap = new Map<string, string>();
+@WebSocketGateway({ namespace: SocketNamespaces.NOTIFICATIONS })
+export class NotificationsGateway extends BaseGateway {
+  protected readonly logger = new Logger(NotificationsGateway.name);
 
   constructor(
+    // forwardRef handles circular dependency with NotificationsService
     @Inject(forwardRef(() => NotificationsService))
-    private notificationsService: NotificationsService,
-    private db: DatabaseService,
-  ) {}
-
-  async handleConnection(client: AuthenticatedSocket) {
-    const userId = client.data.userId;
-    if (!userId) {
-      client.disconnect();
-      return;
-    }
-
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId)!.add(client.id);
-    this.socketUserMap.set(client.id, userId);
-
-    console.log(`🔌 Notification socket connected: ${userId} (${client.id})`);
-
-    const unreadCount = await this.db.notification.count({
-      where: { receiverId: userId, isRead: false },
-    });
-    client.emit(SocketEvents.NOTIFICATION_COUNT, { count: unreadCount });
-
-    client.join(`user:${userId}`);
+    private readonly notificationsService: NotificationsService,
+    private readonly db: DatabaseService,
+  ) {
+    super();
   }
 
-  handleDisconnect(client: AuthenticatedSocket) {
-    const userId = this.socketUserMap.get(client.id);
-    if (userId && this.userSockets.has(userId)) {
-      this.userSockets.get(userId)!.delete(client.id);
-      if (this.userSockets.get(userId)!.size === 0) {
-        this.userSockets.delete(userId);
-      }
-    }
-    this.socketUserMap.delete(client.id);
-    console.log(
-      `🔌 Notification socket disconnected: ${userId} (${client.id})`,
-    );
+  async handleConnection(client: AuthenticatedSocket): Promise<void> {
+    const ok = this.onConnect(client);
+    if (!ok) return;
+
+    // Emit CONNECTED confirmation + current unread count in one go
+    const [unreadCount] = await Promise.all([
+      this.db.notification.count({
+        where: { receiverId: client.user.sub, isRead: false },
+      }),
+    ]);
+
+    client.emit(NotificationEvents.CONNECTED, { userId: client.user.sub });
+    client.emit(NotificationEvents.UNREAD_COUNT, { count: unreadCount });
   }
 
-  @SubscribeMessage(SocketEvents.MARK_NOTIFICATION_READ)
+  // ── Client → server ───────────────────────────────────────────────────────
+
+  @SubscribeMessage(NotificationEvents.MARK_READ)
   async handleMarkRead(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { notificationId: string },
-  ) {
-    const userId = client.data.userId;
-    await this.notificationsService.markAsRead(userId, data.notificationId);
+    @MessageBody() { notificationId }: MarkReadDto,
+  ): Promise<{ success: boolean }> {
+    await this.notificationsService.markAsRead(
+      client.user.sub,
+      notificationId,
+    );
 
-    const unreadCount = await this.db.notification.count({
-      where: { receiverId: userId, isRead: false },
-    });
-    client.emit(SocketEvents.NOTIFICATION_COUNT, { count: unreadCount });
+    await this.pushUnreadCount(client.user.sub);
 
     return { success: true };
   }
 
-  @SubscribeMessage(SocketEvents.MARK_ALL_NOTIFICATIONS_READ)
-  async handleMarkAllRead(@ConnectedSocket() client: AuthenticatedSocket) {
-    const userId = client.data.userId;
-    const result = await this.notificationsService.markAllAsRead(userId);
+  @SubscribeMessage(NotificationEvents.MARK_ALL_READ)
+  async handleMarkAllRead(
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<{ success: boolean; count: number }> {
+    const result = await this.notificationsService.markAllAsRead(
+      client.user.sub,
+    );
 
-    const unreadCount = await this.db.notification.count({
-      where: { receiverId: userId, isRead: false },
-    });
-    client.emit(SocketEvents.NOTIFICATION_COUNT, { count: unreadCount });
+    await this.pushUnreadCount(client.user.sub);
 
     return { success: true, count: result.count };
   }
 
-  sendToUser(userId: string, event: string, data: any) {
-    this.server.to(`user:${userId}`).emit(event, data);
+  // ── Server → client API (called by NotificationsService) ─────────────────
+
+  /**
+   * Push a new notification to a specific user.
+   * Called from NotificationsService after persisting to the database.
+   */
+  sendNotification(userId: string, payload: Record<string, unknown>): void {
+    this.emitToUser(userId, NotificationEvents.NEW_NOTIFICATION, payload);
   }
 
-  sendToUsers(userIds: string[], event: string, data: any) {
-    userIds.forEach((userId) => {
-      this.server.to(`user:${userId}`).emit(event, data);
-    });
+  /**
+   * Recalculate and push the unread count to a user.
+   * Call this after any operation that changes notification read state.
+   */
+  async updateUnreadCount(userId: string): Promise<void> {
+    await this.pushUnreadCount(userId);
   }
 
-  async updateUnreadCount(userId: string) {
+  // ── Private ───────────────────────────────────────────────────────────────
+
+  private async pushUnreadCount(userId: string): Promise<void> {
     const count = await this.db.notification.count({
       where: { receiverId: userId, isRead: false },
     });
-    this.sendToUser(userId, SocketEvents.NOTIFICATION_COUNT, { count });
+
+    this.emitToUser(userId, NotificationEvents.UNREAD_COUNT, { count });
   }
 }
