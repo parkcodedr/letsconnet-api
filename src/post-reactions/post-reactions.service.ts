@@ -3,7 +3,7 @@ import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 
 import Redis from 'ioredis';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import { ReactionType } from 'src/posts/types';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class PostReactionsService {
 
   constructor(
     private db: DatabaseService,
-    @Inject(REDIS_CLIENT)
+    @Inject(REDIS_CACHE)
     private readonly redis: Redis,
   ) {}
 

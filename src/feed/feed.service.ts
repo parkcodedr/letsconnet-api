@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Redis as RedisClient } from 'ioredis';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import { GetFeedDto } from './dto/feed.dto';
 import { PostResourceMapper } from 'src/posts/resources/post.resource';
 
@@ -12,7 +12,7 @@ export class FeedService {
 
   constructor(
     private db: DatabaseService,
-    @Inject(REDIS_CLIENT)
+    @Inject(REDIS_CACHE)
     private readonly redis: RedisClient,
   ) {}
 

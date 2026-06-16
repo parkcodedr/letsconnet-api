@@ -9,7 +9,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DatabaseService } from 'src/database/database.service';
 import { Redis as RedisClient } from 'ioredis';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import { STORAGE_PROVIDER } from 'src/common/storage/storage.token';
 import { StorageProvider } from 'src/common/storage/storage.interface';
 import { ChatMediaJobData } from './chat-media.processor';
@@ -29,7 +29,7 @@ export class ChatService {
 
   constructor(
     private db: DatabaseService,
-    @Inject(REDIS_CLIENT) private readonly redis: RedisClient,
+    @Inject(REDIS_CACHE) private readonly redis: RedisClient,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     @InjectQueue('chat-media-processing')
     private readonly chatMediaQueue: Queue,

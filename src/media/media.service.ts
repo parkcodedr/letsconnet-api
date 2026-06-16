@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import Redis from 'ioredis';
 import { ReactionType } from 'src/posts/types';
 import { CreateMediaCommentDto } from './dto/media-comment.dto';
@@ -19,7 +19,7 @@ export class MediaService {
 
   constructor(
     private db: DatabaseService,
-    @Inject(REDIS_CLIENT)
+    @Inject(REDIS_CACHE)
     private readonly redis: Redis,
   ) {}
 

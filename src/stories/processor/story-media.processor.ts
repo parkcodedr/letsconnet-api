@@ -7,16 +7,15 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import { DatabaseService } from 'src/database/database.service';
-
 import { STORAGE_PROVIDER } from 'src/common/storage/storage.token';
 import { StorageProvider } from 'src/common/storage/storage.interface';
-
 import { compressVideo } from 'src/media/video.processor';
 import { processImage } from 'src/media/image.processor';
 import { generateThumbnail } from 'src/media/thumbnail.processor';
 import { StoryGateway } from 'src/realtime/gateways/story.gateway';
 import { StoryMediaJobData } from './story-media-job.type';
-
+import { EventBusService } from 'src/events/event-bus.service';
+import { StoryEvents } from 'src/realtime/constant/socket-events';
 
 @Processor('process-story-media')
 export class StoryMediaProcessor extends WorkerHost {
@@ -24,7 +23,7 @@ export class StoryMediaProcessor extends WorkerHost {
 
   constructor(
     private readonly db: DatabaseService,
-    private readonly storyGateway: StoryGateway,
+    private readonly eventBus: EventBusService,
     @Inject(STORAGE_PROVIDER)
     private readonly storage: StorageProvider,
   ) {
@@ -141,7 +140,8 @@ export class StoryMediaProcessor extends WorkerHost {
           },
         });
 
-        this.storyGateway.emitStoryReady(userId, {
+        await this.eventBus.publish(StoryEvents.STORY_READY, {
+          userId,
           storyId,
           story,
         });
@@ -168,7 +168,8 @@ export class StoryMediaProcessor extends WorkerHost {
         },
       });
 
-      this.storyGateway.emitStoryFailed(userId, {
+      await this.eventBus.publish(StoryEvents.STORY_ERROR, {
+        userId,
         storyId,
         mediaId,
       });

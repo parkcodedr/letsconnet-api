@@ -21,6 +21,8 @@ import { FeedModule } from './feed/feed.module';
 import { ChatModule } from './chat/chat.module';
 import { UsersModule } from './users/users.module';
 import { StoriesModule } from './stories/stories.module';
+import { EventBusModule } from './events/event-bus.module';
+import { EventListenerModule } from './events/event-listener.module';
 
 @Module({
   imports: [
@@ -45,7 +47,9 @@ import { StoriesModule } from './stories/stories.module';
     FeedModule,
     ChatModule,
     UsersModule,
-    StoriesModule
+    StoriesModule,
+    EventBusModule,
+    EventListenerModule,
   ],
   controllers: [AppController, PostReactionsController, CommentsController],
   providers: [

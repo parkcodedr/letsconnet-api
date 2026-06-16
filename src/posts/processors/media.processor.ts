@@ -7,18 +7,13 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import { DatabaseService } from 'src/database/database.service';
-
 import { STORAGE_PROVIDER } from 'src/common/storage/storage.token';
-
 import { StorageProvider } from 'src/common/storage/storage.interface';
-
 import { MediaJobData } from '../jobs/media-job.type';
-
 import { compressVideo } from 'src/media/video.processor';
-
 import { generateThumbnail } from 'src/media/thumbnail.processor';
 import { processImage } from 'src/media/image.processor';
-import { MediaGateway } from 'src/realtime/gateways/media.gateway';
+import { EventBusService } from 'src/events/event-bus.service';
 
 @Processor('media-processing')
 export class MediaProcessor extends WorkerHost {
@@ -26,8 +21,7 @@ export class MediaProcessor extends WorkerHost {
 
   constructor(
     private readonly db: DatabaseService,
-    private readonly mediaGateway: MediaGateway,
-
+    private readonly eventBus: EventBusService,
     @Inject(STORAGE_PROVIDER)
     private readonly storage: StorageProvider,
   ) {
@@ -123,16 +117,40 @@ export class MediaProcessor extends WorkerHost {
         const completedPost = await this.db.post.findUnique({
           where: { id: finalPostId },
           include: {
-            author: true,
+            author: {
+              select: {
+                id: true,
+                email: true,
+                profile: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    username: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
             media: {
-              orderBy: {
-                order: 'asc',
+              where: { status: 'READY', url: { not: null } },
+              orderBy: { order: 'asc' },
+            },
+            reactions: {
+              where: { userId },
+              take: 1,
+            },
+            _count: {
+              select: {
+                media: { where: { status: 'READY' } },
+                reactions: true,
+                comments: true,
               },
             },
           },
         });
 
-        this.mediaGateway.emitPostReady(finalUserId, {
+        await this.eventBus.publish('post:ready', {
+          userId: finalUserId,
           postId: finalPostId,
           post: completedPost,
           status: 'READY',
@@ -156,8 +174,9 @@ export class MediaProcessor extends WorkerHost {
         data: { status: 'FAILED' },
       });
 
-      this.mediaGateway.emitPostError(postId, {
-        postId: postId,
+      await this.eventBus.publish('post:error', {
+        userId: userId,
+        postId,
         status: 'FAILED',
       });
 

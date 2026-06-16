@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException, forwardRef } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { Redis as RedisClient } from 'ioredis';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import { GetNotificationsDto } from './dto/notification.dto';
 import { NotificationsGateway } from 'src/realtime/gateways/notifications.gateway';
 
@@ -40,7 +40,7 @@ export class NotificationsService {
     private db: DatabaseService,
     @Inject(forwardRef(() => NotificationsGateway))
     private notificationsGateway: NotificationsGateway,
-    @Inject(REDIS_CLIENT)
+    @Inject(REDIS_CACHE)
     private readonly redis: RedisClient,
   ) {}
 

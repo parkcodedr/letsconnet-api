@@ -7,7 +7,7 @@ import { StorageProvider } from 'src/common/storage/storage.interface';
 import Redis from 'ioredis';
 import * as fs from 'fs/promises';
 import { OriginalPostWithRelations, PostWithRelations } from './types';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import { PostResourceMapper } from './resources/post.resource';
 import { ShareResourceMapper } from './resources/share.resource';
 import { UpdatePostDto } from './dto/update-post.dto';
@@ -22,7 +22,7 @@ export class PostsService {
     private readonly mediaQueue: Queue,
     @Inject(STORAGE_PROVIDER)
     private readonly storage: StorageProvider,
-    @Inject(REDIS_CLIENT)
+    @Inject(REDIS_CACHE)
     private readonly redis: Redis,
   ) {}
 

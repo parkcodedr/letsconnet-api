@@ -7,7 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
-import { REDIS_CLIENT } from 'src/cache/redis-cache.module';
+import { REDIS_CACHE } from 'src/cache/redis-cache.module';
 import Redis from 'ioredis';
 import { FriendshipStatus } from './dto/friendship.dto';
 import { FriendRequestAction } from './type';
@@ -30,7 +30,7 @@ export class FriendshipService {
 
   constructor(
     private db: DatabaseService,
-    @Inject(REDIS_CLIENT)
+    @Inject(REDIS_CACHE)
     private readonly redis: Redis,
   ) {}
 

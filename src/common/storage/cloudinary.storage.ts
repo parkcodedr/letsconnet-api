@@ -1,8 +1,19 @@
 import { getFileType } from 'src/auth/utils/post';
-import cloudinary from './cloudinary.config';
 import { UploadedFile, UploadOptions } from './storage.interface';
+import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary } from 'cloudinary';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class CloudinaryStorage {
+  constructor(private readonly configService: ConfigService) {
+    cloudinary.config({
+      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.configService.get<string>('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET'),
+    });
+  }
+
   async uploadFile(
     filePath: string,
     options?: UploadOptions,
@@ -36,7 +47,7 @@ export class CloudinaryStorage {
     const randomStr = Math.random().toString(36).substring(7);
     const publicId = options?.customPublicId || `${timestamp}_${randomStr}`;
 
-    console.log(`📁 Uploading to: ${folderPath}/${publicId}`);
+    console.log(`Uploading to: ${folderPath}/${publicId}`);
 
     const uploadOptions: any = {
       folder: folderPath,
@@ -86,15 +97,14 @@ export class CloudinaryStorage {
     const folderPath = `letsconnet/users/${userId}/posts/${postId}`;
 
     try {
-      // Delete all resources in the folder
       const result =
         await cloudinary.api.delete_resources_by_prefix(folderPath);
-      console.log(`✅ Deleted post ${postId} media:`, result);
+      console.log(`Deleted post ${postId} media:`, result);
 
       // Try to delete empty folders (optional)
       await cloudinary.api.delete_folder(folderPath).catch(() => {});
     } catch (error) {
-      console.error(`❌ Error deleting post ${postId} media:`, error);
+      console.error(`Error deleting post ${postId} media:`, error);
     }
   }
 }
