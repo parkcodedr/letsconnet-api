@@ -7,8 +7,8 @@ export const REDIS_PUBSUB = 'REDIS_PUBSUB';
 export const REDIS_PUBLISHER = 'REDIS_PUBLISHER';
 
 const createRedisClient = (configService: ConfigService) => {
-  //const url = configService.get<string>('REDIS_URL');
-  const url = "rediss://red-d8ot1fs8aovs73apk01g:Yz8BCiEISEr5NjJamdcxzrIPrfs2lgGL@oregon-keyvalue.render.com:6379"
+  const url = configService.get<string>('REDIS_URL');
+  //const url = "rediss://red-d8ot1fs8aovs73apk01g:Yz8BCiEISEr5NjJamdcxzrIPrfs2lgGL@oregon-keyvalue.render.com:6379"
 
   if (!url) {
     throw new Error('REDIS_URL is not defined in environment variables');
