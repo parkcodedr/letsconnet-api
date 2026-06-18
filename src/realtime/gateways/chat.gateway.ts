@@ -5,6 +5,7 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+
 import { AuthenticatedSocket } from '../adapters/socket-io.adapter';
 import { BaseGateway } from './base.gateway';
 import { ChatEvents, SocketNamespaces } from '../constant/socket-events';
@@ -30,7 +31,9 @@ export class ChatGateway extends BaseGateway {
     const ok = this.onConnect(client);
     if (!ok) return;
 
-    client.emit(ChatEvents.CONNECTED, { userId: client.user.sub });
+    client.emit(ChatEvents.CONNECTED, {
+      userId: client.user.sub,
+    });
   }
 
   @SubscribeMessage(ChatEvents.JOIN_CHAT)
@@ -87,15 +90,8 @@ export class ChatGateway extends BaseGateway {
     });
   }
 
+  
   emitNewMessage(chatId: string, payload: Record<string, unknown>): void {
     this.emitToRoom(`chat:${chatId}`, ChatEvents.NEW_MESSAGE, payload);
-  }
-
-  emitUserOnline(userId: string): void {
-    this.server.emit(ChatEvents.USER_ONLINE, { userId });
-  }
-
-  emitUserOffline(userId: string): void {
-    this.server.emit(ChatEvents.USER_OFFLINE, { userId });
   }
 }

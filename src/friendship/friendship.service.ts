@@ -13,11 +13,12 @@ import { FriendshipStatus } from './dto/friendship.dto';
 import { FriendRequestAction } from './type';
 import { FRIEND_REQUEST_ACTION } from 'src/common/constant/friendship';
 import { Friendship } from 'generated/prisma/client';
+import { PresenceService } from 'src/realtime/services/presence.service';
 
 @Injectable()
 export class FriendshipService {
   private readonly CACHE_TTL = 300;
-  private readonly SUGGESTIONS_CACHE_TTL = 600; // 10 min — suggestions change less often
+  private readonly SUGGESTIONS_CACHE_TTL = 600;
   private readonly MUTUAL_CACHE_TTL = 300;
 
   private readonly FRIENDS_CACHE_PREFIX = 'friends:';
@@ -32,6 +33,7 @@ export class FriendshipService {
     private db: DatabaseService,
     @Inject(REDIS_CACHE)
     private readonly redis: Redis,
+    private readonly presenceService: PresenceService,
   ) {}
 
   async sendFriendRequest(requesterId: string, receiverId: string) {
@@ -968,7 +970,6 @@ export class FriendshipService {
     if (!friendship) {
       throw new NotFoundException('Friend request not found');
     }
-    
 
     switch (action) {
       case FRIEND_REQUEST_ACTION.ACCEPT:
@@ -987,9 +988,9 @@ export class FriendshipService {
 
       case FRIEND_REQUEST_ACTION.CANCEL:
         if (friendship.requesterId !== userId) {
-          console.log({userId,friendship});
-          
-          throw new ForbiddenException("not");
+          console.log({ userId, friendship });
+
+          throw new ForbiddenException('not');
         }
 
         return this.cancelFriendRequest(userId, friendship);
@@ -997,6 +998,36 @@ export class FriendshipService {
       default:
         throw new BadRequestException('Invalid action');
     }
+  }
+
+  async getFriendIds(userId: string): Promise<string[]> {
+    const friendships = await this.db.friendship.findMany({
+      where: {
+        status: FriendshipStatus.ACCEPTED,
+        OR: [{ requesterId: userId }, { receiverId: userId }],
+      },
+      select: {
+        requesterId: true,
+        receiverId: true,
+      },
+    });
+
+    return friendships.map((f) =>
+      f.requesterId === userId ? f.receiverId : f.requesterId,
+    );
+  }
+
+  async getOnlineFriends(userId: string) {
+    const friendIds = await this.getFriendIds(userId);
+
+    const statuses = await Promise.all(
+      friendIds.map(async (id) => ({
+        userId: id,
+        online: await this.presenceService.isOnline(id),
+      })),
+    );
+
+    return statuses;
   }
 
   private async getRateLimitCount(userId: string): Promise<number> {

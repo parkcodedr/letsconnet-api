@@ -9,6 +9,8 @@ import { AuthModule } from 'src/auth/auth.module';
 import { StorageModule } from 'src/common/storage/storage.module';
 import { MediaGateway } from 'src/realtime/gateways/media.gateway';
 import { ChatGateway } from 'src/realtime/gateways/chat.gateway';
+import { PresenceService } from 'src/realtime/services/presence.service';
+import { FriendshipModule } from 'src/friendship/friendship.module';
 
 @Module({
   imports: [
@@ -16,6 +18,7 @@ import { ChatGateway } from 'src/realtime/gateways/chat.gateway';
     AuthModule,
     StorageModule,
     BullModule.registerQueue({ name: 'chat-media-processing' }),
+    FriendshipModule
   ],
   controllers: [ChatController],
   providers: [
@@ -24,6 +27,7 @@ import { ChatGateway } from 'src/realtime/gateways/chat.gateway';
     ChatMediaProcessor,
     DatabaseService,
     MediaGateway,
+    PresenceService
   ],
   exports: [ChatService],
 })

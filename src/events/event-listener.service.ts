@@ -4,6 +4,7 @@ import { Inject } from '@nestjs/common';
 
 import { MediaGateway } from 'src/realtime/gateways/media.gateway';
 import { StoryGateway } from 'src/realtime/gateways/story.gateway';
+import { PresenceGateway } from 'src/realtime/gateways/presence.gateway';
 
 @Injectable()
 export class EventListenerService implements OnModuleInit {
@@ -13,6 +14,7 @@ export class EventListenerService implements OnModuleInit {
 
     private readonly mediaGateway: MediaGateway,
     private readonly storyGateway: StoryGateway,
+    private readonly presenceGateway: PresenceGateway,
   ) {}
 
   onModuleInit() {
@@ -21,6 +23,8 @@ export class EventListenerService implements OnModuleInit {
       'post:error',
       'story:ready',
       'story:error',
+      'presence:online',
+      'presence:offline',
     );
 
     this.redis.on('message', (channel, message) => {
@@ -41,6 +45,14 @@ export class EventListenerService implements OnModuleInit {
 
         case 'story:error':
           this.storyGateway.emitStoryFailed(payload.userId, payload);
+          break;
+
+        case 'presence:online':
+          this.presenceGateway.emitUserOnline(payload.userId);
+          break;
+
+        case 'presence:offline':
+          this.presenceGateway.emitUserOffline(payload.userId);
           break;
       }
     });

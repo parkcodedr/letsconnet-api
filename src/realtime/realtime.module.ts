@@ -5,10 +5,12 @@ import { MediaGateway } from './gateways/media.gateway';
 import { ChatGateway } from './gateways/chat.gateway';
 import { SignalGateway } from './gateways/signal.gateway';
 import { StoryGateway } from './gateways/story.gateway';
+import { PresenceService } from './services/presence.service';
+import { FriendshipModule } from 'src/friendship/friendship.module';
 
 @Module({
-  imports: [DatabaseModule],
-  providers: [MediaGateway, ChatGateway, SignalGateway, StoryGateway],
-  exports: [MediaGateway, ChatGateway, SignalGateway, StoryGateway],
+  imports: [DatabaseModule,FriendshipModule],
+  providers: [MediaGateway, ChatGateway, SignalGateway, StoryGateway,PresenceService],
+  exports: [MediaGateway, ChatGateway, SignalGateway, StoryGateway,PresenceService],
 })
 export class RealtimeModule {}

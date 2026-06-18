@@ -13,7 +13,7 @@ export class StoryGateway extends BaseGateway {
     userId: string,
     payload: Record<string, unknown>,
   ) {
-    console.log({userId,payload});
+   
     
     this.emitToUser(
       userId,

@@ -1,4 +1,3 @@
-
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -7,6 +6,7 @@ import {
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
+
 import { AuthenticatedSocket } from '../adapters/socket-io.adapter';
 
 export abstract class BaseGateway
@@ -14,39 +14,32 @@ export abstract class BaseGateway
 {
   @WebSocketServer()
   protected readonly server!: Server;
-
   protected abstract readonly logger: Logger;
+  protected readonly seen = new Set<string>();
 
-  private readonly seen = new Set<string>();
-
-  afterInit(_server: Server): void {
-    this.logger.log(`${this.constructor.name} initialised`);
+  afterInit(): void {
+    this.logger.log(`${this.constructor.name} initialized`);
   }
 
-  
   handleConnection(client: AuthenticatedSocket): void {
-    this.onConnect(client);
+    const ok = this.onConnect(client);
+    if (!ok) return;
+
+    void this.afterConnected(client);
   }
 
-  handleDisconnect(client: AuthenticatedSocket): void {
+  async handleDisconnect(client: AuthenticatedSocket): Promise<void> {
     this.seen.delete(client.id);
-    this.logger.log(
-      `[${this.constructor.name}] ${client.id} disconnected` +
-        ` (user: ${client.user?.sub ?? 'unknown'})`,
-    );
+
+    await this.afterDisconnected(client);
   }
 
-  
   protected onConnect(client: AuthenticatedSocket): boolean {
-    if (this.seen.has(client.id)) {
-      this.logger.debug(`Duplicate connection ignored: ${client.id}`);
-      return false;
-    }
+    if (this.seen.has(client.id)) return false;
 
     const userId = client.user?.sub;
 
     if (!userId) {
-      this.logger.warn(`Unauthenticated socket ${client.id} — disconnecting`);
       client.disconnect(true);
       return false;
     }
@@ -54,19 +47,30 @@ export abstract class BaseGateway
     this.seen.add(client.id);
     client.join(userId);
 
-    this.logger.log(
-      `[${this.constructor.name}] ${client.id} connected → room(${userId})`,
-    );
-
     return true;
   }
+
+  protected async afterConnected(_client: AuthenticatedSocket): Promise<void> {}
+
+  protected async afterDisconnected(
+    _client: AuthenticatedSocket,
+  ): Promise<void> {}
 
   protected emitToUser(
     userId: string,
     event: string,
     payload: Record<string, unknown>,
-  ): void {
+  ) {
     this.server.to(userId).emit(event, payload);
+  }
+
+  protected emitToUsers(
+    userIds: string[],
+    event: string,
+    payload: Record<string, unknown>,
+  ) {
+    if (!userIds.length) return;
+    this.server.to(userIds).emit(event, payload);
   }
 
   protected emitToRoom(

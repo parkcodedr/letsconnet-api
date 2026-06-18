@@ -146,13 +146,10 @@ export class FriendshipController {
     );
   }
 
-  // @Delete('requests/:requestId/cancel')
-  // cancelFriendRequest(
-  //   @CurrentUser('sub') userId: string,
-  //   @Param('requestId') requestId: string,
-  // ) {
-  //   return this.friendshipService.cancelFriendRequest(userId, requestId);
-  // }
+  @Get('online')
+  getOnlineFriends(@CurrentUser('sub') userId: string) {
+    return this.friendshipService.getOnlineFriends(userId);
+  }
 
   @Post('friend-requests/:id/action')
   actionOnFriendRequest(
@@ -166,6 +163,4 @@ export class FriendshipController {
       body.action,
     );
   }
-
-  
 }

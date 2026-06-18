@@ -5,20 +5,19 @@ export const SocketNamespaces = {
   NOTIFICATIONS: '/notifications',
   POST: '/post',
   STORIES: '/stories',
+  PRESENCE: '/presence',
 } as const;
 
 export const NotificationEvents = {
-  
   MARK_READ: 'notification:read',
   MARK_ALL_READ: 'notification:read:all',
- 
+
   CONNECTED: 'connected',
   NEW_NOTIFICATION: 'notification:new',
   UNREAD_COUNT: 'notification:count',
 };
 
 export const MediaEvents = {
- 
   CONNECTED: 'connected',
   POST_READY: 'post:ready',
   POST_ERROR: 'post:error',
@@ -29,7 +28,6 @@ export const MediaEvents = {
 } as const;
 
 export const ChatEvents = {
-  
   JOIN_CHAT: 'chat:join',
   LEAVE_CHAT: 'chat:leave',
   SEND_MESSAGE: 'chat:send',
@@ -37,7 +35,6 @@ export const ChatEvents = {
   TYPING_STOP: 'chat:typing:stop',
   MARK_READ: 'chat:read',
 
- 
   CONNECTED: 'connected',
   NEW_MESSAGE: 'chat:message',
   TYPING: 'chat:typing',
@@ -47,7 +44,6 @@ export const ChatEvents = {
 } as const;
 
 export const SignalEvents = {
-
   CALL_OFFER: 'signal:offer',
   CALL_ANSWER: 'signal:answer',
   ICE_CANDIDATE: 'signal:ice',
@@ -67,3 +63,9 @@ export const StoryEvents = {
   STORY_READY: 'story:ready',
   STORY_ERROR: 'story:error',
 } as const;
+
+export enum PresenceEvents {
+  USER_ONLINE = 'presence:user_online',
+  USER_OFFLINE = 'presence:user_offline',
+  ONLINE_USERS = 'presence:online',
+}
