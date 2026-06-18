@@ -5,8 +5,6 @@ import { EventListenerModule } from './events/event-listener.module';
 @Module({
   imports: [
     AppModule,
-
-    // API-only runtime stuff
     EventListenerModule,
   ],
 })
