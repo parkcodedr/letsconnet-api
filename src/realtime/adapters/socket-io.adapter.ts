@@ -1,4 +1,3 @@
-
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { INestApplication } from '@nestjs/common';
 import { Server, ServerOptions, Socket } from 'socket.io';
@@ -13,9 +12,7 @@ export interface JwtPayload {
   [key: string]: unknown;
 }
 
-
 type RawSocket = Socket & { user?: JwtPayload };
-
 
 export interface AuthenticatedSocket extends Socket {
   user: JwtPayload;
@@ -30,7 +27,10 @@ export class SocketIoAdapter extends IoAdapter {
     const config = app.get(ConfigService);
     this.jwtSecret = config.getOrThrow<string>('JWT_ACCESS_SECRET');
     this.allowedOrigins = config
-      .get<string>('ALLOWED_ORIGINS', 'http://localhost:3001')
+      .get<string>(
+        'ALLOWED_ORIGINS',
+        'http://localhost:3001,https://letsconnet-client.vercel.app',
+      )
       .split(',')
       .map((o) => o.trim());
   }
@@ -61,7 +61,6 @@ export class SocketIoAdapter extends IoAdapter {
   private buildAuthMiddleware() {
     const secret = this.jwtSecret;
 
-    
     return (socket: RawSocket, next: (err?: Error) => void): void => {
       try {
         const token = socket.handshake.auth?.token as string | undefined;
@@ -72,7 +71,6 @@ export class SocketIoAdapter extends IoAdapter {
 
         const decoded = verify(token, secret) as JwtPayload;
 
-        
         socket.user = decoded;
         next();
       } catch (err) {

@@ -17,7 +17,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
 
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://192.168.0.100:3000'],
+    origin: ['http://localhost:3001', 'https://letsconnet-client.vercel.app'],
     credentials: true,
   });
 
