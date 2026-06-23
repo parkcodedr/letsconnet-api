@@ -1,4 +1,3 @@
-// firebase.storage.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
@@ -21,17 +20,27 @@ export class FirebaseStorage implements StorageProvider {
   constructor(private readonly configService: ConfigService) {
     const existingApps = getApps();
 
+    const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+
+    if (!privateKey) {
+      throw new Error(
+        'FIREBASE_PRIVATE_KEY is not defined in environment variables',
+      );
+    }
+
     this.app = existingApps.length
       ? existingApps[0]
       : initializeApp({
           credential: cert({
             projectId: this.configService.get<string>('FIREBASE_PROJECT_ID'),
-            clientEmail: this.configService.get<string>('FIREBASE_CLIENT_EMAIL'),
-            privateKey: this.configService
-              .get<string>('FIREBASE_PRIVATE_KEY')!
-              .replace(/\\n/g, '\n'),
+            clientEmail: this.configService.get<string>(
+              'FIREBASE_CLIENT_EMAIL',
+            ),
+            privateKey: privateKey?.replace(/\\n/g, '\n'),
           }),
-          storageBucket: this.configService.get<string>('FIREBASE_STORAGE_BUCKET'),
+          storageBucket: this.configService.get<string>(
+            'FIREBASE_STORAGE_BUCKET',
+          ),
         });
 
     this.bucket = getStorage(this.app).bucket();
@@ -72,8 +81,12 @@ export class FirebaseStorage implements StorageProvider {
     try {
       stats = fs.statSync(filePath);
     } catch (statError: any) {
-      this.logger.error(`Cannot stat local file ${filePath}: ${statError.message}`);
-      throw new Error(`Local file inaccessible: ${filePath} — ${statError.message}`);
+      this.logger.error(
+        `Cannot stat local file ${filePath}: ${statError.message}`,
+      );
+      throw new Error(
+        `Local file inaccessible: ${filePath} — ${statError.message}`,
+      );
     }
 
     this.logger.log(
@@ -107,7 +120,9 @@ export class FirebaseStorage implements StorageProvider {
         this.logger.error(`[Firebase] Error code: ${uploadError.code}`);
       }
       if (uploadError.errors) {
-        this.logger.error(`[Firebase] Error details: ${JSON.stringify(uploadError.errors)}`);
+        this.logger.error(
+          `[Firebase] Error details: ${JSON.stringify(uploadError.errors)}`,
+        );
       }
       throw new Error(`Firebase upload failed: ${uploadError.message}`);
     }
@@ -125,8 +140,12 @@ export class FirebaseStorage implements StorageProvider {
     }
 
     if (!exists) {
-      this.logger.error(`[Firebase] Upload reported success but file.exists() = false: ${destination}`);
-      throw new Error(`Firebase upload failed silently — file not found at ${destination}`);
+      this.logger.error(
+        `[Firebase] Upload reported success but file.exists() = false: ${destination}`,
+      );
+      throw new Error(
+        `Firebase upload failed silently — file not found at ${destination}`,
+      );
     }
 
     let metadata: any;
@@ -136,7 +155,9 @@ export class FirebaseStorage implements StorageProvider {
       this.logger.error(
         `[Firebase] getMetadata() failed for ${destination}: ${metaError.message}`,
       );
-      throw new Error(`Could not read uploaded file metadata: ${metaError.message}`);
+      throw new Error(
+        `Could not read uploaded file metadata: ${metaError.message}`,
+      );
     }
 
     if (Number(metadata.size) !== stats.size) {

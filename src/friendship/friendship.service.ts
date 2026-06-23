@@ -1017,17 +1017,59 @@ export class FriendshipService {
     );
   }
 
-  async getOnlineFriends(userId: string) {
+  async getOnlineFriends(userId: string, page = 1, limit = 20) {
     const friendIds = await this.getFriendIds(userId);
 
-    const statuses = await Promise.all(
-      friendIds.map(async (id) => ({
-        userId: id,
-        online: await this.presenceService.isOnline(id),
-      })),
+    if (!friendIds.length) {
+      return {
+        data: [],
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
+    const onlineUserIds = await this.presenceService.getOnlineUsers();
+
+    // FAST SET intersection
+    const onlineFriendIds = friendIds.filter((id) =>
+      onlineUserIds.includes(id),
     );
 
-    return statuses;
+    const total = onlineFriendIds.length;
+
+    const paginatedIds = onlineFriendIds.slice(
+      (page - 1) * limit,
+      page * limit,
+    );
+
+    const users = await this.db.user.findMany({
+      where: {
+        id: { in: paginatedIds },
+      },
+      select: {
+        id: true,
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            username: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    return {
+      data: users.map((u) => ({
+        ...u,
+        isOnline: true,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   private async getRateLimitCount(userId: string): Promise<number> {

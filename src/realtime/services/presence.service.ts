@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 
 @Injectable()
 export class PresenceService {
-  private readonly ONLINE_USERS_KEY = 'online_users';
+  private readonly ONLINE_USERS_KEY = 'presence:online_users';
 
   constructor(
     @Inject('REDIS_CACHE')
@@ -11,32 +11,20 @@ export class PresenceService {
   ) {}
 
   async setOnline(userId: string) {
-    const count = await this.redis.incr(`presence:user:${userId}`);
-
-    return count;
-  }
-
-  async setOffline(userId: string) {
-    const key = `presence:user:${userId}`;
-
-    const count = await this.redis.decr(key);
-
-    if (count <= 0) {
-      await this.redis.del(key);
-
-      return false;
-    }
-
+    await this.redis.sadd(this.ONLINE_USERS_KEY, userId);
     return true;
   }
 
-  async isOnline(userId: string) {
-    const count = await this.redis.get(`presence:user:${userId}`);
-
-    return Number(count) > 0;
+  async setOffline(userId: string) {
+    await this.redis.srem(this.ONLINE_USERS_KEY, userId);
+    return false;
   }
 
-  async getOnlineUsers() {
+  async isOnline(userId: string) {
+    return (await this.redis.sismember(this.ONLINE_USERS_KEY, userId)) === 1;
+  }
+
+  async getOnlineUsers(): Promise<string[]> {
     return this.redis.smembers(this.ONLINE_USERS_KEY);
   }
 }

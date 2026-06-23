@@ -10,7 +10,6 @@ import { EventBusService } from 'src/events/event-bus.service';
 import { FriendshipService } from 'src/friendship/friendship.service';
 import { AuthenticatedSocket } from '../adapters/socket-io.adapter';
 
-
 @WebSocketGateway({ namespace: SocketNamespaces.PRESENCE })
 export class PresenceGateway extends BaseGateway {
   protected readonly logger = new Logger(PresenceGateway.name);
@@ -26,11 +25,12 @@ export class PresenceGateway extends BaseGateway {
   protected override async afterConnected(client: AuthenticatedSocket) {
     const userId = client.user.sub;
 
-    const count = await this.presenceService.setOnline(userId);
+    await this.presenceService.setOnline(userId);
 
-    if (count === 1) {
-      await this.eventBus.publish('presence:online', { userId });
-    }
+    const friendIds = await this.friendshipService.getFriendIds(userId);
+
+    // notify only friends
+    this.emitToUsers(friendIds, 'user:online', { userId });
   }
 
   protected override async afterDisconnected(client: AuthenticatedSocket) {
@@ -40,7 +40,9 @@ export class PresenceGateway extends BaseGateway {
     const stillOnline = await this.presenceService.setOffline(userId);
 
     if (!stillOnline) {
-      await this.eventBus.publish('presence:offline', { userId });
+      const friendIds = await this.friendshipService.getFriendIds(userId);
+
+      this.emitToUsers(friendIds, 'user:offline', { userId });
     }
   }
 
