@@ -1,5 +1,7 @@
 import ffmpeg from 'fluent-ffmpeg';
 
-ffmpeg.setFfmpegPath('C:\\ffmpeg\\bin\\ffmpeg.exe');
+const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
+
+ffmpeg.setFfmpegPath(FFMPEG_PATH);
 
 export default ffmpeg;
