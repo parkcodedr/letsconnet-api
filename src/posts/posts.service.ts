@@ -400,7 +400,7 @@ export class PostsService {
       id: post.id,
       status: post.status,
       message: files?.length
-        ? 'Post created, media processing in background'
+        ? "Post created, you will be notifified when it's ready"
         : 'Post created successfully',
     };
   }
