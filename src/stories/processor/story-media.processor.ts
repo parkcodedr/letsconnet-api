@@ -65,11 +65,15 @@ export class StoryMediaProcessor extends WorkerHost {
       let thumbnailPath: string | undefined;
       let resourceType: 'image' | 'video' = 'image';
 
-   
       if (mimeType.startsWith('video')) {
         resourceType = 'video';
 
-        processedPath = path.join('./uploads/processed', `${mediaId}.mp4`);
+        processedPath = path.join(
+          process.cwd(),
+          'uploads',
+          'processed',
+          `${mediaId}.mp4`,
+        );
 
         const timeout = Math.max(300000, stats.size / 1024 / 50);
 
@@ -84,14 +88,11 @@ export class StoryMediaProcessor extends WorkerHost {
           processedPath,
           `${mediaId}.jpg`,
         );
-      }
-
-      else {
+      } else {
         const processed = await processImage(localPath, `${mediaId}.jpg`);
         processedPath = processed.outputPath;
       }
 
-   
       const uploaded = await uploadWithRetry(this.storage, processedPath, {
         userId,
         resourceType,
@@ -111,7 +112,6 @@ export class StoryMediaProcessor extends WorkerHost {
         thumbnailUrl = thumb.url;
       }
 
-     
       await this.db.storyMedia.update({
         where: { id: mediaId },
         data: {
@@ -124,10 +124,8 @@ export class StoryMediaProcessor extends WorkerHost {
         },
       });
 
-    
       await this.checkStoryCompletion(storyId, userId);
 
-    
       await this.cleanup(localPath);
       if (processedPath !== localPath) await this.cleanup(processedPath);
       if (thumbnailPath) await this.cleanup(thumbnailPath);
@@ -157,7 +155,6 @@ export class StoryMediaProcessor extends WorkerHost {
     }
   }
 
- 
   private async checkStoryCompletion(storyId: string, userId: string) {
     const pending = await this.db.storyMedia.count({
       where: {
@@ -198,7 +195,6 @@ export class StoryMediaProcessor extends WorkerHost {
     });
   }
 
- 
   private async cleanup(file?: string) {
     if (!file) return;
 

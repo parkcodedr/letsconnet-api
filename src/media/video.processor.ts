@@ -6,12 +6,12 @@ const PROCESS_DIR = path.join(process.cwd(), 'uploads', 'processed');
 
 export async function compressVideo(
   input: string,
-  outputFileName: string,
+  outputPath: string,
   timeoutMs?: number,
 ): Promise<string> {
   await mkdir(PROCESS_DIR, { recursive: true });
 
-  const outputPath = path.join(PROCESS_DIR, outputFileName);
+ 
 
   const watermarkPath = path.resolve(
     process.cwd(),

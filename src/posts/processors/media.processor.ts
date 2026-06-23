@@ -30,6 +30,7 @@ export class MediaProcessor extends WorkerHost {
     'uploads',
     'processed',
   );
+
   private readonly RAW_DIR = path.join(process.cwd(), 'uploads', 'raw');
 
   constructor(
@@ -54,7 +55,6 @@ export class MediaProcessor extends WorkerHost {
         throw new Error(`Media not found: ${mediaId}`);
       }
 
-   
       await fs.mkdir(this.PROCESSED_DIR, { recursive: true });
 
       const localStats = await fs.stat(localPath).catch(() => null);
@@ -76,13 +76,15 @@ export class MediaProcessor extends WorkerHost {
       let thumbnailPath: string | undefined;
       let resourceType: 'image' | 'video' = 'image';
 
-      // =========================
-      // VIDEO PIPELINE (FIXED)
-      // =========================
       if (mimeType.startsWith('video')) {
         resourceType = 'video';
 
-        processedPath = path.join(this.PROCESSED_DIR, `${mediaId}.mp4`);
+        processedPath = path.join(
+          process.cwd(),
+          'uploads',
+          'processed',
+          `${mediaId}.mp4`,
+        );
 
         const durationSec = await this.getVideoDurationSafe(localPath);
         const timeout = Math.max(durationSec * 1000 * 4, 300000);
@@ -101,10 +103,7 @@ export class MediaProcessor extends WorkerHost {
           processedPath,
           `${mediaId}.jpg`,
         );
-      }
-
-   
-      else if (mimeType.startsWith('image')) {
+      } else if (mimeType.startsWith('image')) {
         resourceType = 'image';
 
         const processed = await processImage(localPath, `${mediaId}.jpg`);
@@ -112,7 +111,6 @@ export class MediaProcessor extends WorkerHost {
         processedPath = processed.outputPath;
       }
 
-    
       const uploaded = await uploadWithRetry(this.storage, processedPath, {
         postId: finalPostId,
         userId: finalUserId,
@@ -136,7 +134,6 @@ export class MediaProcessor extends WorkerHost {
         thumbnailUrl = thumb.url;
       }
 
-  
       await this.db.media.update({
         where: { id: mediaId },
         data: {
@@ -149,7 +146,6 @@ export class MediaProcessor extends WorkerHost {
 
       await this.checkPostCompletion(finalPostId, finalUserId);
 
-      
       await this.cleanupFile(localPath);
 
       if (processedPath !== localPath) {
@@ -178,7 +174,6 @@ export class MediaProcessor extends WorkerHost {
     }
   }
 
-  
   private async cleanupFile(filePath?: string) {
     if (!filePath) return;
 
@@ -247,13 +242,12 @@ export class MediaProcessor extends WorkerHost {
     );
   }
 
-  
   private async getVideoDurationSafe(filePath: string): Promise<number> {
     try {
       const { getVideoDuration } = await import('src/media/video-duration');
       return await getVideoDuration(filePath);
     } catch {
-      return 30; 
+      return 30;
     }
   }
 }
