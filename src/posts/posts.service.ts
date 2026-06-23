@@ -368,13 +368,25 @@ export class PostsService {
           },
         });
 
-        await this.mediaQueue.add('process-media', {
-          mediaId: media.id,
-          localPath: file.path,
-          mimeType: file.mimetype,
-          postId: post.id,
-          userId: userId,
-        });
+        await this.mediaQueue.add(
+          'process-media',
+          {
+            mediaId: media.id,
+            localPath: file.path,
+            mimeType: file.mimetype,
+            postId: post.id,
+            userId: userId,
+          },
+          {
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 10000,
+            },
+            removeOnComplete: { age: 3600 },
+            removeOnFail: { age: 86400 },
+          },
+        );
 
         return media;
       });
@@ -525,7 +537,6 @@ export class PostsService {
         },
       });
     }
-    
 
     await this.db.post.update({
       where: {

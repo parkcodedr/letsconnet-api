@@ -13,14 +13,22 @@ import { BullModule } from '@nestjs/bullmq';
         }
 
         return {
-          connection: {
-            url,
+          connection: { url },
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
           },
         };
       },
     }),
     BullModule.registerQueue(
-      { name: 'media-processing' },
+      {
+        name: 'media-processing',
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        },
+      },
       { name: 'process-story-media' },
     ),
   ],
